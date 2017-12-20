@@ -8,10 +8,7 @@ from PyQt5.QtCore import Qt, QVariant, QRect, QDir, QFile, QFileInfo, QTextStrea
 import sys, os
 import subprocess
 import syntax_py
-
-abspath = os.path.abspath(__file__)
-dname = os.path.dirname(abspath)
-os.chdir(dname)
+from pathlib import Path
 
 lineBarColor = QColor("#DED6AC")
 lineHighlightColor  = QColor("#F5F5F5")
@@ -94,6 +91,7 @@ class myEditor(QWidget):
         self.mypython = "2"
         self.sh = subprocess
         self.mylabel = QLabel()
+        self.mylabel.setTextInteractionFlags(Qt.TextSelectableByMouse)
         # Line Numbers ...
         self.numbers = NumberBar(self.editor)
         # Syntax Highlighter ...
@@ -277,6 +275,9 @@ class myEditor(QWidget):
                 self.document = self.editor.document()
                 self.mylabel.setText("File '" + self.fname + "' loaded succesfully.")
                 self.setCurrentFile(self.filename)
+#                dname = os.path.abspath(os.path.join(path, os.pardir))
+#                print(dname)
+#                os.chdir(dname)
         
         ### open File
     def openFile(self, path=None):
@@ -304,6 +305,9 @@ class myEditor(QWidget):
                     self.document = self.editor.document()
                     self.mylabel.setText("File '" + self.fname + "' loaded succesfully.")
                     self.setCurrentFile(self.filename)
+#                    dname = os.path.abspath(os.path.join(path, os.pardir))
+#                    print(dname)
+#                    os.chdir(dname)
             
     def fileSave(self):
         if (self.filename != ""):
@@ -323,6 +327,8 @@ class myEditor(QWidget):
             self.setWindowTitle(self.fname + "[*]")
             self.mylabel.setText("File saved.")
             self.setCurrentFile(self.filename)
+            
+            
         else:
             self.fileSaveAs()
             
@@ -389,6 +395,9 @@ class myEditor(QWidget):
             self.mypython = "3"
             self.mylabel.setText("running " + self.filename + " in Python 3")
             self.fileSave()
+            dname = os.path.abspath(os.path.join(self.filename, os.pardir))
+            print(dname)
+            os.chdir(dname)
             cmd = "python3 '" + self.filename + "'"
             self.readData(cmd)
         
@@ -397,6 +406,9 @@ class myEditor(QWidget):
             self.mypython = "2"
             self.mylabel.setText("running " + self.filename + " in Python 2")
             self.fileSave()
+            dname = os.path.abspath(os.path.join(self.filename, os.pardir))
+            print(dname)
+            os.chdir(dname)
             cmd = "python '" + self.filename + "'"
             self.readData(cmd)
             
@@ -643,13 +655,6 @@ class myEditor(QWidget):
         for i in range(numRecentFiles):
             mytext = files[i]
             self.rmenu.addAction(QIcon.fromTheme("gnome-mime-text-x-python"), mytext)
-#            print(mytext)
-
-#        for j in range(numRecentFiles, self.MaxRecentFiles):
-#            self.recentFileActs[j].setVisible(False)
-            
-#        self.separatorAct.setVisible((numRecentFiles > 0))
-        #'''
         
     def strippedName(self, fullFileName):
         return QFileInfo(fullFileName).fileName()
@@ -684,3 +689,4 @@ if __name__ == '__main__':
         print(sys.argv[1])
         win.openFileOnStart(sys.argv[1])
     app.exec_()
+
