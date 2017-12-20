@@ -2,7 +2,7 @@
 # -- coding: utf-8 --
 
 from PyQt5.QtWidgets import QPlainTextEdit, QWidget, QVBoxLayout, QApplication, QFileDialog, QMessageBox, QHBoxLayout, \
-                         QFrame, QTextEdit, QToolBar, QComboBox, QLabel, QAction, QLineEdit, QToolButton, QMenu
+                         QFrame, QTextEdit, QToolBar, QComboBox, QLabel, QAction, QLineEdit, QToolButton, QMenu, QMainWindow
 from PyQt5.QtGui import QIcon, QPainter, QTextFormat, QColor, QTextCursor, QKeySequence, QClipboard
 from PyQt5.QtCore import Qt, QVariant, QRect, QDir, QFile, QFileInfo, QTextStream, QRegExp, QSettings
 import sys, os
@@ -71,7 +71,7 @@ class NumberBar(QWidget):
 
             painter.end()
 
-class myEditor(QWidget):
+class myEditor(QMainWindow):
     def __init__(self, parent = None):
         super(myEditor, self).__init__(parent)
         self.MaxRecentFiles = 10
@@ -173,11 +173,17 @@ class myEditor(QWidget):
         self.exitAct.setIcon(QIcon.fromTheme("application-exit"))
         tb.addAction(self.exitAct)     
         ### end toolbar
+
+        self.rmenu = QMenu("Recent Files")
+        self.rmenu.setIcon(QIcon.fromTheme("gnome-mime-text-x-python"))
+        self.updateRecentFileActions()
         
         ### find / replace toolbar
         self.tbf = QToolBar(self)
         self.tbf.setWindowTitle("Find Toolbar")   
         self.findfield = QLineEdit()
+        self.findfield.addAction(QIcon.fromTheme("edit-find"), QLineEdit.LeadingPosition)
+        self.findfield.setClearButtonEnabled(True)
         self.findfield.setFixedWidth(150)
         self.findfield.setPlaceholderText("find")
         self.findfield.setToolTip("press RETURN to find")
@@ -186,6 +192,8 @@ class myEditor(QWidget):
         self.findfield.returnPressed.connect(self.findText2)
         self.tbf.addWidget(self.findfield)
         self.replacefield = QLineEdit()
+        self.replacefield.addAction(QIcon.fromTheme("edit-find-and-replace"), QLineEdit.LeadingPosition)
+        self.replacefield.setClearButtonEnabled(True)
         self.replacefield.setFixedWidth(150)
         self.replacefield.setPlaceholderText("replace with")
         self.replacefield.setToolTip("press RETURN to replace the first")
@@ -199,6 +207,33 @@ class myEditor(QWidget):
         self.tbf.addSeparator()
 
         layoutV = QVBoxLayout()
+        
+        bar=self.menuBar()
+        filemenu=bar.addMenu("File")
+        filemenu.addMenu(self.rmenu)
+        filemenu.addSeparator()
+        filemenu.addAction(self.newAct)
+        filemenu.addAction(self.openAct)
+        filemenu.addAction(self.saveAct)
+        filemenu.addAction(self.saveAsAct)
+        filemenu.addSeparator()
+        filemenu.addAction(self.exitAct)
+        
+        editmenu = bar.addMenu("Edit")
+        editmenu.addAction(QAction(QIcon.fromTheme('edit-copy'), "Copy", self, triggered = self.editor.copy, shortcut = "Ctrl+c"))
+        editmenu.addAction(QAction(QIcon.fromTheme('edit-cut'), "Cut", self, triggered = self.editor.cut, shortcut = "Ctrl+x"))
+        editmenu.addAction(QAction(QIcon.fromTheme('edit-paste'), "Paste", self, triggered = self.editor.paste, shortcut = "Ctrl+v"))
+        editmenu.addAction(QAction(QIcon.fromTheme('edit-delete'), "Delete", self, triggered = self.editor.cut, shortcut = "Del"))
+        editmenu.addSeparator()
+        editmenu.addAction(QAction(QIcon.fromTheme('edit-select-all'), "Select All", self, triggered = self.editor.selectAll, shortcut = "Ctrl+a"))
+        editmenu.addSeparator()
+        editmenu.addAction(self.commentAct)
+        editmenu.addAction(self.uncommentAct)
+        editmenu.addSeparator()
+        editmenu.addAction(self.py2Act)
+        editmenu.addAction(self.py3Act)
+        layoutV.addWidget(bar)      
+        
         layoutV.addWidget(tb)
         layoutV.addWidget(self.tbf)
         layoutV.addLayout(layoutH)
@@ -207,7 +242,11 @@ class myEditor(QWidget):
         self.mylabel.setStyleSheet(stylesheet2(self))
         self.mylabel.setText("Welcome to PyEdit2")
         layoutV.addWidget(self.mylabel)
-        self.setLayout(layoutV)
+        ### main window
+        mq = QWidget(self)
+        mq.setLayout(layoutV)
+        self.setCentralWidget(mq)
+        
         # Event Filter ...
         self.installEventFilter(self)
         self.editor.setFocus()
@@ -215,9 +254,7 @@ class myEditor(QWidget):
         self.editor.setPlainText(self.mainText)
         self.editor.moveCursor(self.cursor.End)
         self.editor.document().modificationChanged.connect(self.setWindowModified)
-        self.rmenu = QMenu("Recent Files")
-        self.rmenu.setIcon(QIcon.fromTheme("gnome-mime-text-x-python"))
-        self.updateRecentFileActions()
+        
         # Brackets ExtraSelection ...
         self.left_selected_bracket  = QTextEdit.ExtraSelection()
         self.right_selected_bracket = QTextEdit.ExtraSelection()
@@ -228,18 +265,12 @@ class myEditor(QWidget):
         
     def generate_context_menu(self, location):
         self.cmenu = self.editor.createStandardContextMenu()
-        # add extra items to the menu
+
         self.cmenu.addSeparator()
         self.cmenu.addMenu(self.rmenu)
-        # show the menu
+
         self.cmenu.addSeparator()
-        action = self.cmenu.exec_(self.editor.mapToGlobal(location))
-        if action is not None:
-            print(action.text())
-            fn = action.text()
-            if fn.startswith("/"):
-                if (self.maybeSave()):
-                    self.openRecentFile(fn)           
+        action = self.cmenu.exec_(self.editor.mapToGlobal(location))           
             
     def openRecentFile(self, fn):
         self.openFileOnStart(fn)
@@ -275,9 +306,6 @@ class myEditor(QWidget):
                 self.document = self.editor.document()
                 self.mylabel.setText("File '" + self.fname + "' loaded succesfully.")
                 self.setCurrentFile(self.filename)
-#                dname = os.path.abspath(os.path.join(path, os.pardir))
-#                print(dname)
-#                os.chdir(dname)
         
         ### open File
     def openFile(self, path=None):
@@ -305,9 +333,6 @@ class myEditor(QWidget):
                     self.document = self.editor.document()
                     self.mylabel.setText("File '" + self.fname + "' loaded succesfully.")
                     self.setCurrentFile(self.filename)
-#                    dname = os.path.abspath(os.path.join(path, os.pardir))
-#                    print(dname)
-#                    os.chdir(dname)
             
     def fileSave(self):
         if (self.filename != ""):
@@ -651,10 +676,11 @@ class myEditor(QWidget):
         numRecentFiles = min(len(files), self.MaxRecentFiles)
         self.rmenu.clear()
         print(str(numRecentFiles) + " Files in Recent List")
-        #'''
-        for i in range(numRecentFiles):
-            mytext = files[i]
-            self.rmenu.addAction(QIcon.fromTheme("gnome-mime-text-x-python"), mytext)
+        for item in range(numRecentFiles):
+            mytext = files[item]
+            action = self.rmenu.addAction(QIcon.fromTheme("application-text"), mytext)
+            action.triggered.connect(
+                lambda item=item: self.openRecentFile(mytext))
         
     def strippedName(self, fullFileName):
         return QFileInfo(fullFileName).fileName()
@@ -682,11 +708,11 @@ if __name__ == '__main__':
     win = myEditor()
     win.setWindowIcon(QIcon.fromTheme("gnome-mime-text-x-python"))
     win.setWindowTitle("PyEdit" + "[*]")
-#    win.setGeometry(0, 0, 800, 700)
     win.setMinimumSize(640,250)
     win.showMaximized()
     if len(sys.argv) > 1:
         print(sys.argv[1])
         win.openFileOnStart(sys.argv[1])
     app.exec_()
+
 
