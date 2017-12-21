@@ -74,16 +74,16 @@ class NumberBar(QWidget):
 class myEditor(QMainWindow):
     def __init__(self, parent = None):
         super(myEditor, self).__init__(parent)
-        self.MaxRecentFiles = 10
+        self.MaxRecentFiles = 5
+        self.windowList = []
         self.recentFileActs = []
+        self.setAttribute(Qt.WA_DeleteOnClose)
         # Editor Widget ...
         QIcon.setThemeName('Faenza-Dark')
         self.editor = QPlainTextEdit() 
         self.editor.setStyleSheet(stylesheet2(self))
         self.editor.setFrameStyle(QFrame.NoFrame)
         self.editor.setTabStopWidth(14)
-        self.editor.setContextMenuPolicy(Qt.CustomContextMenu)
-        self.editor.customContextMenuRequested.connect(self.generate_context_menu)
         self.extra_selections = []
         self.mainText = "#!/usr/bin/python3\n# -*- coding: utf-8 -*-\n"
         self.fname = ""
@@ -94,6 +94,7 @@ class myEditor(QMainWindow):
         self.mylabel.setTextInteractionFlags(Qt.TextSelectableByMouse)
         # Line Numbers ...
         self.numbers = NumberBar(self.editor)
+        self.createActions()
         # Syntax Highlighter ...
         self.highlighter = syntax_py.Highlighter(self.editor.document())
 
@@ -173,10 +174,6 @@ class myEditor(QMainWindow):
         self.exitAct.setIcon(QIcon.fromTheme("application-exit"))
         tb.addAction(self.exitAct)     
         ### end toolbar
-
-        self.rmenu = QMenu("Recent Files")
-        self.rmenu.setIcon(QIcon.fromTheme("gnome-mime-text-x-python"))
-        self.updateRecentFileActions()
         
         ### find / replace toolbar
         self.tbf = QToolBar(self)
@@ -202,22 +199,25 @@ class myEditor(QMainWindow):
         self.tbf.addWidget(self.replacefield)
         self.tbf.addSeparator()
                 
-        self.tbf.addAction(QIcon.fromTheme("edit-find-and-replace"),"replace all", self.replaceAll)
+#        self.tbf.addAction(QIcon.fromTheme("edit-find-and-replace"),"replace all", self.replaceAll)
         self.tbf.addAction("replace all", self.replaceAll)
         self.tbf.addSeparator()
 
         layoutV = QVBoxLayout()
         
         bar=self.menuBar()
-        filemenu=bar.addMenu("File")
-        filemenu.addMenu(self.rmenu)
-        filemenu.addSeparator()
-        filemenu.addAction(self.newAct)
-        filemenu.addAction(self.openAct)
-        filemenu.addAction(self.saveAct)
-        filemenu.addAction(self.saveAsAct)
-        filemenu.addSeparator()
-        filemenu.addAction(self.exitAct)
+        self.filemenu=bar.addMenu("File")
+        self.separatorAct = self.filemenu.addSeparator()
+        self.filemenu.addAction(self.newAct)
+        self.filemenu.addAction(self.openAct)
+        self.filemenu.addAction(self.saveAct)
+        self.filemenu.addAction(self.saveAsAct)
+        self.filemenu.addSeparator()
+        for i in range(self.MaxRecentFiles):
+            self.filemenu.addAction(self.recentFileActs[i])
+        self.updateRecentFileActions()
+        self.filemenu.addSeparator()
+        self.filemenu.addAction(self.exitAct)
         
         editmenu = bar.addMenu("Edit")
         editmenu.addAction(QAction(QIcon.fromTheme('edit-copy'), "Copy", self, triggered = self.editor.copy, shortcut = "Ctrl+c"))
@@ -259,21 +259,21 @@ class myEditor(QMainWindow):
         self.left_selected_bracket  = QTextEdit.ExtraSelection()
         self.right_selected_bracket = QTextEdit.ExtraSelection()
         
+    def createActions(self):
+        for i in range(self.MaxRecentFiles):
+            self.recentFileActs.append(
+                   QAction(self, visible=False,
+                            triggered=self.openRecentFile))
+        
     def clearLabel(self):
         self.mylabel.setText("")
-    
-        
-    def generate_context_menu(self, location):
-        self.cmenu = self.editor.createStandardContextMenu()
-
-        self.cmenu.addSeparator()
-        self.cmenu.addMenu(self.rmenu)
-
-        self.cmenu.addSeparator()
-        action = self.cmenu.exec_(self.editor.mapToGlobal(location))           
+              
             
-    def openRecentFile(self, fn):
-        self.openFileOnStart(fn)
+    def openRecentFile(self):
+        action = self.sender()
+        if action:
+            if (self.maybeSave()):
+                self.openFileOnStart(action.data())
             
         ### New File
     def newFile(self):
@@ -654,9 +654,14 @@ class myEditor(QMainWindow):
         self.setModified(True)
         
     def setCurrentFile(self, fileName):
-        self.curFile = fileName
+#        self.curFile = fileName
+#        if self.curFile:
+#            self.setWindowTitle("%s - Recent Files" % self.strippedName(self.curFile) + "[*]")
+#        else:
+#            self.setWindowTitle("Recent Files")
+
         settings = QSettings('Axel Schneider', 'PyEdit')
-        files = settings.value('recentFileList', [])
+        files = settings.value('recentFileList')
 
         try:
             files.remove(fileName)
@@ -667,20 +672,28 @@ class myEditor(QMainWindow):
         del files[self.MaxRecentFiles:]
 
         settings.setValue('recentFileList', files)
-        self.updateRecentFileActions()
+
+        for widget in QApplication.topLevelWidgets():
+            if isinstance(widget, myEditor):
+                widget.updateRecentFileActions()
 
     def updateRecentFileActions(self):
         mytext = ""
         settings = QSettings('Axel Schneider', 'PyEdit')
-        files = settings.value('recentFileList', [])
+        files = settings.value('recentFileList')
+
         numRecentFiles = min(len(files), self.MaxRecentFiles)
-        self.rmenu.clear()
-        print(str(numRecentFiles) + " Files in Recent List")
-        for item in range(numRecentFiles):
-            mytext = files[item]
-            action = self.rmenu.addAction(QIcon.fromTheme("application-text"), mytext)
-            action.triggered.connect(
-                lambda item=item: self.openRecentFile(mytext))
+
+        for i in range(numRecentFiles):
+            text = "&%d %s" % (i + 1, self.strippedName(files[i]))
+            self.recentFileActs[i].setText(text)
+            self.recentFileActs[i].setData(files[i])
+            self.recentFileActs[i].setVisible(True)
+
+        for j in range(numRecentFiles, self.MaxRecentFiles):
+            self.recentFileActs[j].setVisible(False)
+
+        self.separatorAct.setVisible((numRecentFiles > 0))
         
     def strippedName(self, fullFileName):
         return QFileInfo(fullFileName).fileName()
@@ -714,5 +727,4 @@ if __name__ == '__main__':
         print(sys.argv[1])
         win.openFileOnStart(sys.argv[1])
     app.exec_()
-
 
