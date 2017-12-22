@@ -186,7 +186,7 @@ class myEditor(QMainWindow):
         self.findfield.setToolTip("press RETURN to find")
         self.findfield.setText("")
         ft = self.findfield.text()
-        self.findfield.returnPressed.connect(self.findText2)
+        self.findfield.returnPressed.connect(self.findText)
         self.tbf.addWidget(self.findfield)
         self.replacefield = QLineEdit()
         self.replacefield.addAction(QIcon.fromTheme("edit-find-and-replace"), QLineEdit.LeadingPosition)
@@ -198,10 +198,31 @@ class myEditor(QMainWindow):
         self.tbf.addSeparator() 
         self.tbf.addWidget(self.replacefield)
         self.tbf.addSeparator()
-                
+        
 #        self.tbf.addAction(QIcon.fromTheme("edit-find-and-replace"),"replace all", self.replaceAll)
         self.tbf.addAction("replace all", self.replaceAll)
         self.tbf.addSeparator()
+        
+        self.gotofield = QLineEdit()
+        self.gotofield.addAction(QIcon.fromTheme("next"), QLineEdit.LeadingPosition)
+        self.gotofield.setClearButtonEnabled(True)
+        self.gotofield.setFixedWidth(120)
+        self.gotofield.setPlaceholderText("go to line")
+        self.gotofield.setToolTip("press RETURN to go to line")
+        self.gotofield.returnPressed.connect(self.gotoLine)
+        self.tbf.addWidget(self.gotofield)
+        
+        self.tbf.addSeparator() 
+        self.bookmarks = QComboBox()
+        self.bookmarks.setFixedWidth(200)
+        self.bookmarks.setToolTip("go to bookmark")
+        self.bookmarks.activated.connect(self.gotoBookmark)
+        self.tbf.addWidget(self.bookmarks)
+
+        self.bookAct = QAction("add Bookmark", self,
+                toolTip="add Bookmark", triggered=self.addBookmark)
+        self.bookAct.setIcon(QIcon.fromTheme("previous"))
+        self.tbf.addAction(self.bookAct)
 
         layoutV = QVBoxLayout()
         
@@ -264,6 +285,29 @@ class myEditor(QMainWindow):
             self.recentFileActs.append(
                    QAction(self, visible=False,
                             triggered=self.openRecentFile))
+            
+    def addBookmark(self):
+        linenumber = self.editor.textCursor().blockNumber() + 1
+        linetext = self.editor.textCursor().block().text()
+        print(linetext, linenumber)
+        self.bookmarks.addItem(linetext, linenumber)
+            
+    def gotoLine(self):
+        ln = int(self.gotofield.text())
+        print(ln)
+        linecursor = QTextCursor(self.editor.document().findBlockByLineNumber(ln-1))
+        self.editor.moveCursor(QTextCursor.End)
+        self.editor.setTextCursor(linecursor)
+        
+    def gotoBookmark(self):
+        action = self.sender()
+        if action:
+            ln = action.itemData(self.bookmarks.currentIndex())
+            print(ln)
+            linecursor = QTextCursor(self.editor.document().findBlockByLineNumber(ln-1))
+            self.editor.moveCursor(QTextCursor.End)
+            self.editor.setTextCursor(linecursor)
+        
         
     def clearLabel(self):
         self.mylabel.setText("")
@@ -284,6 +328,7 @@ class myEditor(QMainWindow):
             self.setModified(False)
             self.editor.moveCursor(self.cursor.End)
             self.mylabel.setText("new File created.")
+            self.editor.setFocus()
             
        ### open File
     def openFileOnStart(self, path=None):
@@ -306,6 +351,8 @@ class myEditor(QMainWindow):
                 self.document = self.editor.document()
                 self.mylabel.setText("File '" + self.fname + "' loaded succesfully.")
                 self.setCurrentFile(self.filename)
+                self.editor.setFocus()
+                self.bookmarks.clear()
         
         ### open File
     def openFile(self, path=None):
@@ -333,6 +380,8 @@ class myEditor(QMainWindow):
                     self.document = self.editor.document()
                     self.mylabel.setText("File '" + self.fname + "' loaded succesfully.")
                     self.setCurrentFile(self.filename)
+                    self.editor.setFocus()
+                    self.bookmarks.clear()
             
     def fileSave(self):
         if (self.filename != ""):
@@ -352,6 +401,7 @@ class myEditor(QMainWindow):
             self.setWindowTitle(self.fname + "[*]")
             self.mylabel.setText("File saved.")
             self.setCurrentFile(self.filename)
+            self.editor.setFocus()
             
             
         else:
@@ -485,27 +535,18 @@ class myEditor(QMainWindow):
                                 QTextCursor.MoveAnchor) ### not working
         
     
-    def findText(self, ft):
-        if self.editor.find(self.sfield.currentText()):
-            self.mylabel.setText("found <b>'" + self.sfield.currentText() + "'</b>")
+    def findText(self):
+        word = self.findfield.text()
+        if self.editor.find(word):
+            linenumber = self.editor.textCursor().blockNumber() + 1
+            self.mylabel.setText("found <b>'" + self.findfield.text() + "'</b> at Line: " + str(linenumber))
         else:
-            self.mylabel.setText("<b>'" + self.sfield.currentText() + "'</b> not found")
-            self.editor.moveCursor(1)
-            if self.editor.find(self.sfield.currentText()):
-                self.editor.moveCursor(QTextCursor.Start, QTextCursor.MoveAnchor)
-                self.mylabel.setText("found <b>'" + self.sfield.currentText() + "'</b>")
-    
-    def findText2(self):
-        ft = self.findfield.text()
-        if self.editor.find(ft):
-            self.mylabel.setText("found <b>'" + ft + "'</b>")
-        else:
-            self.mylabel.setText("<b>'" + ft + "'</b> not found")
-            self.editor.moveCursor(1)
-            if self.editor.find(ft):
-                self.editor.moveCursor(QTextCursor.Start, QTextCursor.MoveAnchor)
-                self.mylabel.setText("found <b>'" + ft + "'</b>")
-        
+            self.mylabel.setText("<b>'" + self.findfield.text() + "'</b> not found")
+            self.editor.moveCursor(QTextCursor.Start)            
+            if self.editor.find(word):
+                linenumber = self.editor.textCursor().blockNumber() + 1
+                self.mylabel.setText("found <b>'" + self.findfield.text() + "'</b> at Line: " + str(linenumber))
+            
     def handleQuit(self):
         print("Goodbye ...")
         app.quit()
