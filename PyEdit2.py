@@ -5,6 +5,7 @@ from PyQt5.QtWidgets import QPlainTextEdit, QWidget, QVBoxLayout, QApplication, 
                          QFrame, QTextEdit, QToolBar, QComboBox, QLabel, QAction, QLineEdit, QToolButton, QMenu, QMainWindow
 from PyQt5.QtGui import QIcon, QPainter, QTextFormat, QColor, QTextCursor, QKeySequence, QClipboard
 from PyQt5.QtCore import Qt, QVariant, QRect, QDir, QFile, QFileInfo, QTextStream, QRegExp, QSettings
+from PyQt5 import QtTest
 import sys, os
 import subprocess
 import syntax_py
@@ -166,7 +167,6 @@ class myEditor(QMainWindow):
         tb.addSeparator()
         tb.addAction(QIcon.fromTheme("dialog-info"),"About &PyQT", QApplication.instance().aboutQt)
         tb.addSeparator()
-#        tb.addAction(QIcon.fromTheme("gtk-refresh"),"kill Python", self.killPython)
         tb.addAction(QIcon.fromTheme("gtk-refresh"),"clear Output Label", self.clearLabel)
         ### exit button
         self.exitAct = QAction("exit", self, shortcut=QKeySequence.Quit,
@@ -199,7 +199,6 @@ class myEditor(QMainWindow):
         self.tbf.addWidget(self.replacefield)
         self.tbf.addSeparator()
         
-#        self.tbf.addAction(QIcon.fromTheme("edit-find-and-replace"),"replace all", self.replaceAll)
         self.tbf.addAction("replace all", self.replaceAll)
         self.tbf.addSeparator()
         
@@ -223,6 +222,12 @@ class myEditor(QMainWindow):
                 toolTip="add Bookmark", triggered=self.addBookmark)
         self.bookAct.setIcon(QIcon.fromTheme("previous"))
         self.tbf.addAction(self.bookAct)
+        
+        self.tbf.addSeparator() 
+        self.bookrefresh = QAction("update Bookmarks", self,
+                toolTip="update Bookmarks", triggered=self.findBookmarks)
+        self.bookrefresh.setIcon(QIcon.fromTheme("view-refresh"))
+        self.tbf.addAction(self.bookrefresh)
 
         layoutV = QVBoxLayout()
         
@@ -258,7 +263,6 @@ class myEditor(QMainWindow):
         layoutV.addWidget(tb)
         layoutV.addWidget(self.tbf)
         layoutV.addLayout(layoutH)
-#        self.mylabel = QLabel()
         self.mylabel.setMinimumHeight(28)
         self.mylabel.setStyleSheet(stylesheet2(self))
         self.mylabel.setText("Welcome to PyEdit2")
@@ -290,27 +294,32 @@ class myEditor(QMainWindow):
         self.editor.moveCursor(self.cursor.StartOfLine)
         linenumber = self.editor.textCursor().blockNumber() + 1
         linetext = self.editor.textCursor().block().text()
-#        print(linetext, linenumber)
         self.bookmarks.addItem(linetext, linenumber)
             
     def gotoLine(self):
         ln = int(self.gotofield.text())
-#        print(ln)
         linecursor = QTextCursor(self.editor.document().findBlockByLineNumber(ln-1))
         self.editor.moveCursor(QTextCursor.End)
         self.editor.setTextCursor(linecursor)
         
     def gotoBookmark(self):
-        action = self.sender()
-        if action:
-            ln = action.itemData(self.bookmarks.currentIndex())
-#            print(ln)
-            linecursor = QTextCursor(self.editor.document().findBlockByLineNumber(ln-1))
-            self.editor.moveCursor(QTextCursor.End)
-            self.editor.setTextCursor(linecursor)
+        self.editor.moveCursor(QTextCursor.Start)
+        linetext = self.bookmarks.itemText(self.bookmarks.currentIndex())
+        self.findBookmark(linetext)
+        linenumber = self.editor.textCursor().blockNumber() + 1
+        ln = int(linenumber)
+        linecursor = QTextCursor(self.editor.document().findBlockByLineNumber(ln-1))
+        self.editor.moveCursor(QTextCursor.End)
+        self.editor.setTextCursor(linecursor)
+        
+    def clearBookmarks(self):
+        self.bookmarks.clear()
             
     #### find lines with def or class
     def findBookmarks(self):
+        self.clearBookmarks()
+        self.editor.moveCursor(QTextCursor.Start)
+        QtTest.QTest.qWait(250)
         while True:
             r = self.editor.find("class")
             if r:
@@ -329,6 +338,7 @@ class myEditor(QMainWindow):
                 self.editor.find("def")
             else:
                 break
+        self.editor.moveCursor(QTextCursor.Start)
 
                 
     def clearLabel(self):
@@ -374,7 +384,7 @@ class myEditor(QMainWindow):
                 self.mylabel.setText("File '" + self.fname + "' loaded succesfully.")
                 self.setCurrentFile(self.filename)
                 self.editor.setFocus()
-                self.bookmarks.clear()
+#                self.bookmarks.clear()
                 self.findBookmarks()
         
         ### open File
@@ -550,6 +560,11 @@ class myEditor(QMainWindow):
             if self.editor.find(word):
                 linenumber = self.editor.textCursor().blockNumber() + 1
                 self.mylabel.setText("found <b>'" + self.findfield.text() + "'</b> at Line: " + str(linenumber))
+            
+    def findBookmark(self, word):
+        if self.editor.find(word):
+            linenumber = self.editor.textCursor().blockNumber() + 1
+            self.mylabel.setText("found <b>'" + self.findfield.text() + "'</b> at Line: " + str(linenumber))
             
     def handleQuit(self):
         print("Goodbye ...")
@@ -772,5 +787,6 @@ if __name__ == '__main__':
         print(sys.argv[1])
         win.openFileOnStart(sys.argv[1])
     app.exec_()
+
 
 
