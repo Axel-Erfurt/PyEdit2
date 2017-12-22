@@ -287,14 +287,15 @@ class myEditor(QMainWindow):
                             triggered=self.openRecentFile))
             
     def addBookmark(self):
+        self.editor.moveCursor(self.cursor.StartOfLine)
         linenumber = self.editor.textCursor().blockNumber() + 1
         linetext = self.editor.textCursor().block().text()
-        print(linetext, linenumber)
+#        print(linetext, linenumber)
         self.bookmarks.addItem(linetext, linenumber)
             
     def gotoLine(self):
         ln = int(self.gotofield.text())
-        print(ln)
+#        print(ln)
         linecursor = QTextCursor(self.editor.document().findBlockByLineNumber(ln-1))
         self.editor.moveCursor(QTextCursor.End)
         self.editor.setTextCursor(linecursor)
@@ -303,12 +304,33 @@ class myEditor(QMainWindow):
         action = self.sender()
         if action:
             ln = action.itemData(self.bookmarks.currentIndex())
-            print(ln)
+#            print(ln)
             linecursor = QTextCursor(self.editor.document().findBlockByLineNumber(ln-1))
             self.editor.moveCursor(QTextCursor.End)
             self.editor.setTextCursor(linecursor)
-        
-        
+            
+    #### find lines with def or class
+    def findBookmarks(self):
+        while True:
+            r = self.editor.find("class")
+            if r:
+                self.addBookmark()
+                self.cursor.movePosition(QTextCursor.NextCharacter,
+                                QTextCursor.KeepAnchor)
+                self.editor.find("class")            
+            else:
+                break
+        while True:
+            r = self.editor.find("def")
+            if r:
+                self.addBookmark()
+                self.cursor.movePosition(QTextCursor.NextCharacter,
+                                QTextCursor.KeepAnchor)
+                self.editor.find("def")
+            else:
+                break
+
+                
     def clearLabel(self):
         self.mylabel.setText("")
               
@@ -353,6 +375,7 @@ class myEditor(QMainWindow):
                 self.setCurrentFile(self.filename)
                 self.editor.setFocus()
                 self.bookmarks.clear()
+                self.findBookmarks()
         
         ### open File
     def openFile(self, path=None):
@@ -362,31 +385,12 @@ class myEditor(QMainWindow):
                     "Python Files (*.py)")
 
             if path:
-                inFile = QFile(path)
-                if inFile.open(QFile.ReadWrite | QFile.Text):
-                    text = inFile.readAll()
-            
-                    try:
-                        # Python v3.
-                        text = str(text, encoding = 'utf8')
-                    except TypeError:
-                        # Python v2.
-                        text = str(text)
-                    self.editor.setPlainText(text)
-                    self.filename = path
-                    self.setModified(False)
-                    self.fname = QFileInfo(path).fileName() 
-                    self.setWindowTitle(self.fname + "[*]")
-                    self.document = self.editor.document()
-                    self.mylabel.setText("File '" + self.fname + "' loaded succesfully.")
-                    self.setCurrentFile(self.filename)
-                    self.editor.setFocus()
-                    self.bookmarks.clear()
+                self.openFileOnStart(path)
             
     def fileSave(self):
         if (self.filename != ""):
             file = QFile(self.filename)
-            print(self.filename)
+#            print(self.filename)
             if not file.open( QFile.WriteOnly | QFile.Text):
                 QMessageBox.warning(self, "Error",
                         "Cannot write file %s:\n%s." % (self.filename, file.errorString()))
@@ -471,7 +475,7 @@ class myEditor(QMainWindow):
             self.mylabel.setText("running " + self.filename + " in Python 3")
             self.fileSave()
             dname = os.path.abspath(os.path.join(self.filename, os.pardir))
-            print(dname)
+#            print(dname)
             os.chdir(dname)
             cmd = "python3 '" + self.filename + "'"
             self.readData(cmd)
@@ -482,7 +486,7 @@ class myEditor(QMainWindow):
             self.mylabel.setText("running " + self.filename + " in Python 2")
             self.fileSave()
             dname = os.path.abspath(os.path.join(self.filename, os.pardir))
-            print(dname)
+#            print(dname)
             os.chdir(dname)
             cmd = "python '" + self.filename + "'"
             self.readData(cmd)
@@ -768,4 +772,5 @@ if __name__ == '__main__':
         print(sys.argv[1])
         win.openFileOnStart(sys.argv[1])
     app.exec_()
+
 
