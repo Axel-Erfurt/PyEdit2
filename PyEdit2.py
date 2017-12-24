@@ -2,121 +2,10 @@
 # -- coding: utf-8 --
 
 from PyQt5.QtWidgets import QPlainTextEdit, QWidget, QVBoxLayout, QApplication, QFileDialog, QMessageBox, QHBoxLayout, \
-                         QFrame, QTextEdit, QToolBar, QComboBox, QLabel, QAction, QLineEdit, QToolButton, QMenu, QMainWindow
+                             QFrame, QTextEdit, QToolBar, QComboBox, QLabel, QAction, QLineEdit,\
+                             QToolButton, QMenu, QMainWindow, QSizePolicy, QInputDialog
 from PyQt5.QtGui import QIcon, QPainter, QTextFormat, QColor, QTextCursor, QKeySequence, QClipboard
-from PyQt5.QtCore import Qt, QVariant, QRect, QDir, QFile, QFileInfo, QTextStream, QRegExp, QSettings
-from PyQt5 import QtTest
-import sys, os
-import subprocess
-import syntax_py
-from pathlib import Path
-
-lineBarColor = QColor("#DED6AC")
-lineHighlightColor  = QColor("#F5F5F5")
-
-class NumberBar(QWidget):
-    def __init__(self, parent = None):
-        super(NumberBar, self).__init__(parent)
-        self.editor = parent
-        layout = QVBoxLayout()
-        self.setLayout(layout)
-        self.editor.blockCountChanged.connect(self.update_width)
-        self.editor.updateRequest.connect(self.update_on_scroll)
-        self.update_width('1')
-
-    def update_on_scroll(self, rect, scroll):
-        if self.isVisible():
-            if scroll:
-                self.scroll(0, scroll)
-            else:
-                self.update()
-
-    def update_width(self, string):
-        width = self.fontMetrics().width(str(string)) + 10
-        if self.width() != width:
-            self.setFixedWidth(width)
-
-    def paintEvent(self, event):
-        if self.isVisible():
-            block = self.editor.firstVisibleBlock()
-            height = self.fontMetrics().height()
-            number = block.blockNumber()
-            painter = QPainter(self)
-            painter.fillRect(event.rect(), lineBarColor)
-            painter.drawRect(0, 0, event.rect().width() - 1, event.rect().height() - 1)
-            font = painter.font()
-
-            current_block = self.editor.textCursor().block().blockNumber() + 1
-
-            condition = True
-            while block.isValid() and condition:
-                block_geometry = self.editor.blockBoundingGeometry(block)
-                offset = self.editor.contentOffset()
-                block_top = block_geometry.translated(offset).top()
-                number += 1
-
-                rect = QRect(0, block_top, self.width() - 5, height)
-
-                if number == current_block:
-                    font.setBold(True)
-                else:
-                    font.setBold(False)
-
-                painter.setFont(font)
-                painter.drawText(rect, Qt.AlignRight, '%i'%number)
-
-                if block_top > event.rect().bottom():
-                    condition = False
-
-                block = block.next()
-
-            painter.end()
-
-class myEditor(QMainWindow):
-    def __init__(self, parent = None):
-        super(myEditor, self).__init__(parent)
-        self.MaxRecentFiles = 5
-        self.windowList = []
-        self.recentFileActs = []
-        self.setAttribute(Qt.WA_DeleteOnClose)
-        # Editor Widget ...
-        QIcon.setThemeName('Faenza-Dark')
-        self.editor = QPlainTextEdit() 
-        self.editor.setStyleSheet(stylesheet2(self))
-        self.editor.setFrameStyle(QFrame.NoFrame)
-        self.editor.setTabStopWidth(14)
-        self.extra_selections = []
-        self.mainText = "#!/usr/bin/python3\n# -*- coding: utf-8 -*-\n"
-        self.fname = ""
-        self.filename = ""
-        self.mypython = "2"
-        self.sh = subprocess
-        self.mylabel = QLabel()
-        self.mylabel.setTextInteractionFlags(Qt.TextSelectableByMouse)
-        # Line Numbers ...
-        self.numbers = NumberBar(self.editor)
-        self.createActions()
-        # Syntax Highlighter ...
-        self.highlighter = syntax_py.Highlighter(self.editor.document())
-
-        # Laying out...
-        layoutH = QHBoxLayout()
-        layoutH.setSpacing(1.5)
-        layoutH.addWidget(self.numbers)
-        layoutH.addWidget(self.editor)
-        
-        ### begin toolbar
-        tb = QToolBar(self)
-        tb.setWindowTitle("File Toolbar")        
-        ### file buttons
-        self.newAct = QAction("&New", self, shortcut=QKeySequence.New,
-#!/usr/bin/python3
-# -- coding: utf-8 --
-
-from PyQt5.QtWidgets import QPlainTextEdit, QWidget, QVBoxLayout, QApplication, QFileDialog, QMessageBox, QHBoxLayout, \
-                             QFrame, QTextEdit, QToolBar, QComboBox, QLabel, QAction, QLineEdit, QToolButton, QMenu, QMainWindow, QSizePolicy
-from PyQt5.QtGui import QIcon, QPainter, QTextFormat, QColor, QTextCursor, QKeySequence, QClipboard
-from PyQt5.QtCore import Qt, QVariant, QRect, QDir, QFile, QFileInfo, QTextStream, QRegExp, QSettings, QProcess
+from PyQt5.QtCore import Qt, QVariant, QRect, QDir, QFile, QFileInfo, QTextStream, QRegExp, QSettings, QProcess, QPoint
 from PyQt5 import QtTest
 import sys, os
 import subprocess
@@ -144,7 +33,7 @@ class NumberBar(QWidget):
                 self.update()
 
     def update_width(self, string):
-        width = self.fontMetrics().width(str(string)) + 10
+        width = self.fontMetrics().width(str(string)) + 8
         if self.width() != width:
             self.setFixedWidth(width)
 
@@ -190,13 +79,14 @@ class myEditor(QMainWindow):
         self.MaxRecentFiles = 10
         self.windowList = []
         self.recentFileActs = []
+        self.settings = QSettings("PyEdit", "PyEdit")
         self.setAttribute(Qt.WA_DeleteOnClose)
         # Editor Widget ...
         QIcon.setThemeName('Faenza-Dark')
         self.editor = QPlainTextEdit() 
         self.editor.setStyleSheet(stylesheet2(self))
         self.editor.setFrameStyle(QFrame.NoFrame)
-        self.editor.setTabStopWidth(14)
+        self.editor.setTabStopWidth(20)
         self.extra_selections = []
         self.mainText = "#!/usr/bin/python3\n# -*- coding: utf-8 -*-\n"
         self.fname = ""
@@ -246,19 +136,22 @@ class myEditor(QMainWindow):
         tb.addSeparator()           
         self.commentAct = QAction("#comment Line", self, shortcut="F2",
                 toolTip="comment Line (F2)", triggered=self.commentLine)
+        self.commentAct.setIcon(QIcon("./comment.png"))
         tb.addAction(self.commentAct)
                          
         self.uncommentAct = QAction("uncomment Line", self, shortcut="F3",
                 toolTip="uncomment Line (F3)", triggered=self.uncommentLine)
+        self.uncommentAct.setIcon(QIcon("./uncomment.png"))
         tb.addAction(self.uncommentAct)  
         
-        self.commentBlockAct = QAction("/* - */", self, shortcut="F6",
+        self.commentBlockAct = QAction("comment Block", self, shortcut="F6",
                 toolTip="comment selected block (F6)", triggered=self.commentBlock)
+        self.commentBlockAct.setIcon(QIcon("./commentBlock2.png"))
         tb.addAction(self.commentBlockAct)  
         
-        self.uncommentBlockAct = QAction("&uncomment Block (F7)", self, shortcut="F7",
+        self.uncommentBlockAct = QAction("uncomment Block (F7)", self, shortcut="F7",
                 toolTip="uncomment selected block (F7)", triggered=self.uncommentBlock)
-        self.uncommentBlockAct.setIcon(QIcon.fromTheme("emblem-noread"))
+        self.uncommentBlockAct.setIcon(QIcon("./uncommentBlock2.png"))
         tb.addAction(self.uncommentBlockAct)     
         ### run python buttons      
         tb.addSeparator()   
@@ -353,9 +246,16 @@ class myEditor(QMainWindow):
             self.filemenu.addAction(self.recentFileActs[i])
         self.updateRecentFileActions()
         self.filemenu.addSeparator()
+        self.clearRecentAct = QAction("clear Recent Files List", self, triggered=self.clearRecentFiles)
+        self.clearRecentAct.setIcon(QIcon.fromTheme("edit-clear"))
+        self.filemenu.addAction(self.clearRecentAct)
+        self.filemenu.addSeparator()
         self.filemenu.addAction(self.exitAct)
         
         editmenu = bar.addMenu("Edit")
+        editmenu.addAction(QAction(QIcon.fromTheme('edit-undo'), "Undo", self, triggered = self.editor.undo, shortcut = "Ctrl+u"))
+        editmenu.addAction(QAction(QIcon.fromTheme('edit-redo'), "Redo", self, triggered = self.editor.redo, shortcut = "Shift+Ctrl+u"))
+        editmenu.addSeparator()
         editmenu.addAction(QAction(QIcon.fromTheme('edit-copy'), "Copy", self, triggered = self.editor.copy, shortcut = "Ctrl+c"))
         editmenu.addAction(QAction(QIcon.fromTheme('edit-cut'), "Cut", self, triggered = self.editor.cut, shortcut = "Ctrl+x"))
         editmenu.addAction(QAction(QIcon.fromTheme('edit-paste'), "Paste", self, triggered = self.editor.paste, shortcut = "Ctrl+v"))
@@ -365,6 +265,9 @@ class myEditor(QMainWindow):
         editmenu.addSeparator()
         editmenu.addAction(self.commentAct)
         editmenu.addAction(self.uncommentAct)
+        editmenu.addSeparator()
+        editmenu.addAction(self.commentBlockAct)
+        editmenu.addAction(self.uncommentBlockAct)
         editmenu.addSeparator()
         editmenu.addAction(self.py2Act)
         editmenu.addAction(self.py3Act)
@@ -386,6 +289,7 @@ class myEditor(QMainWindow):
         self.installEventFilter(self)
         self.editor.setFocus()
         self.cursor = QTextCursor()
+        self.editor.setTextCursor(self.cursor)
         self.editor.setPlainText(self.mainText)
         self.editor.moveCursor(self.cursor.End)
         self.editor.document().modificationChanged.connect(self.setWindowModified)
@@ -394,18 +298,55 @@ class myEditor(QMainWindow):
         self.left_selected_bracket  = QTextEdit.ExtraSelection()
         self.right_selected_bracket = QTextEdit.ExtraSelection()
         
+        ### shell settings
         self.process = QProcess(self)
+        self.process.setProcessChannelMode(QProcess.MergedChannels)
         self.process.readyRead.connect(self.dataReady)
         self.process.started.connect(lambda: self.mylabel.append("starting shell"))
         self.process.finished.connect(lambda: self.mylabel.append("shell ended"))
+#        self.setAcceptDrops(True)
+
+        self.editor.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.editor.customContextMenuRequested.connect(self.contextMenuRequested)
+
+    def contextMenuRequested(self,point):
+        cmenu = QMenu()
+        cmenu = self.editor.createStandardContextMenu()
+        cmenu.addSeparator()
+        cmenu.addAction(self.commentAct)
+        cmenu.addAction(self.uncommentAct)
+        cmenu.addSeparator()
+        cmenu.addAction(self.commentBlockAct)
+        cmenu.addAction(self.uncommentBlockAct)
+        cmenu.addSeparator()
+        cmenu.addAction(QAction("replace all occurrences with", self, triggered=self.replaceThis))
+        cmenu.exec_(self.editor.mapToGlobal(point))    
+        
+    def replaceThis(self):
+        rtext = self.editor.textCursor().selectedText()
+        text = QInputDialog.getText(self, ("replace with"),(""), QLineEdit.Normal, "")
+        oldtext = self.editor.document().toPlainText()
+        if not (text[0] == ""):
+            newtext = oldtext.replace(rtext, text[0])
+            self.editor.setPlainText(newtext)
+            self.setModified(True)
+        
+        
+    def indentLine(self):
+        if QKeyboardHandler.enterPressed:
+            self.msgbox("Message", "Enter Key")
         
     def dataReady(self):
         out = ""
         try:
-            out = str(self.process.readAll(), encoding = 'utf8').rstrip() #readAllStandardOutput())
+            out = str(self.process.readAll(), encoding = 'utf8').rstrip()
         except TypeError:
+            self.msgbox("Error", str(self.process.readAll(), encoding = 'utf8'))
             out = str(self.process.readAll()).rstrip()
         self.mylabel.append(out)
+        if self.mylabel.find("line"):
+            s = self.mylabel.toPlainText().partition("line")[2].partition("\n")[0]
+            self.gotoErrorLine(int(s))
         self.mylabel.moveCursor(self.cursor.End)
         self.mylabel.ensureCursorVisible()
         
@@ -416,27 +357,36 @@ class myEditor(QMainWindow):
                             triggered=self.openRecentFile))
             
     def addBookmark(self):
+        linenumber = self.getLineNumber()
+        linetext = self.editor.textCursor().block().text().strip()
+        self.bookmarks.addItem(linetext, linenumber)
+        
+    def getLineNumber(self):
         self.editor.moveCursor(self.cursor.StartOfLine)
         linenumber = self.editor.textCursor().blockNumber() + 1
-        linetext = self.editor.textCursor().block().text()
-        self.bookmarks.addItem(linetext, linenumber)
+        return linenumber
             
-    def gotoLine(self, ln):
+    def gotoLine(self):
         ln = int(self.gotofield.text())
         linecursor = QTextCursor(self.editor.document().findBlockByLineNumber(ln-1))
         self.editor.moveCursor(QTextCursor.End)
         self.editor.setTextCursor(linecursor)
         
-    def gotoBookmark(self):
-        self.editor.moveCursor(QTextCursor.Start)
-        linetext = self.bookmarks.itemText(self.bookmarks.currentIndex())
-        self.findBookmark(linetext)
-        linenumber = self.editor.textCursor().blockNumber() + 1
-        ln = int(linenumber)
-        linecursor = QTextCursor(self.editor.document().findBlockByLineNumber(ln))
+    def gotoErrorLine(self, ln):
+        linecursor = QTextCursor(self.editor.document().findBlockByLineNumber(ln-1))
         self.editor.moveCursor(QTextCursor.End)
         self.editor.setTextCursor(linecursor)
         
+    def gotoBookmark(self):
+        if self.editor.find(self.bookmarks.itemText(self.bookmarks.currentIndex())):
+            pass
+        else:
+            self.editor.moveCursor(QTextCursor.Start)
+            self.editor.find(self.bookmarks.itemText(self.bookmarks.currentIndex()))
+
+        self.editor.centerCursor()
+        self.editor.moveCursor(self.cursor.StartOfLine, self.cursor.MoveAnchor)
+
     def clearBookmarks(self):
         self.bookmarks.clear()
             
@@ -444,7 +394,7 @@ class myEditor(QMainWindow):
     def findBookmarks(self):
         self.clearBookmarks()
         self.editor.moveCursor(QTextCursor.Start)
-        QtTest.QTest.qWait(250)
+        sn = "if __name__ == '__main__':"
         while True:
             r = self.editor.find("class")
             if r:
@@ -461,6 +411,15 @@ class myEditor(QMainWindow):
                 self.cursor.movePosition(QTextCursor.NextCharacter,
                                 QTextCursor.KeepAnchor)
                 self.editor.find("def")
+            else:
+                break
+        while True:
+            r = self.editor.find(sn)
+            if r:
+                self.addBookmark()
+                self.cursor.movePosition(QTextCursor.NextCharacter,
+                                QTextCursor.KeepAnchor)
+                self.editor.find(sn)
             else:
                 break
         self.editor.moveCursor(QTextCursor.Start)
@@ -486,6 +445,8 @@ class myEditor(QMainWindow):
             self.editor.moveCursor(self.cursor.End)
             self.mylabel.setText("new File created.")
             self.editor.setFocus()
+            self.bookmarks.clear()
+            self.setWindowTitle("new File[*]")
             
        ### open File
     def openFileOnStart(self, path=None):
@@ -501,13 +462,9 @@ class myEditor(QMainWindow):
                         # Python v2.
                     text = str(text)
                 self.editor.setPlainText(text)
-                self.filename = path
                 self.setModified(False)
-                self.fname = QFileInfo(path).fileName() 
-                self.setWindowTitle(self.fname + "[*]")
                 self.document = self.editor.document()
-                self.mylabel.setText("File '" + self.fname + "' loaded succesfully.")
-                self.setCurrentFile(self.filename)
+                self.setCurrentFile(path)
                 self.editor.setFocus()
                 self.findBookmarks()
         
@@ -600,27 +557,41 @@ class myEditor(QMainWindow):
                 "\n<p>with PyQt5</p>"  \
                 "\n<p><h3>©2016</h1></p>" \
                 "\n<p><a>https://goodoldsongs.jimdo.com</a></p>\n"
-        msg = QMessageBox.information(self, title, message, QMessageBox.Close)
+        msg = QMessageBox.about(self, title, message)
         
     def runPy3(self):
-        if self.filename:
-            self.mypython = "3"
-            self.mylabel.setText("running " + self.filename + " in Python 3")
-            self.fileSave()
-            dname = os.path.abspath(os.path.join(self.filename, os.pardir))
-            os.chdir(dname)
-            cmd = "python3"
-            self.readData(cmd)
+        if not self.editor.toPlainText() == self.mainText:
+            if self.filename:
+                self.mypython = "2"
+                self.mylabel.setText("running " + self.filename + " in Python 2")
+                self.fileSave()
+                dname = os.path.abspath(os.path.join(self.filename, os.pardir))
+                os.chdir(dname)
+                cmd = "python"
+                self.readData(cmd)
+            else:
+                self.filename = "/tmp/tmp.py"
+                self.fileSave()
+                self.runPy3()
+        else:
+            self.mylabel.setText("no code to run")
         
     def runPy2(self):
-        if self.filename:
-            self.mypython = "2"
-            self.mylabel.setText("running " + self.filename + " in Python 2")
-            self.fileSave()
-            dname = os.path.abspath(os.path.join(self.filename, os.pardir))
-            os.chdir(dname)
-            cmd = "python"
-            self.readData(cmd)
+        if not self.editor.toPlainText() == self.mainText:
+            if self.filename:
+                self.mypython = "2"
+                self.mylabel.setText("running " + self.filename + " in Python 2")
+                self.fileSave()
+                dname = os.path.abspath(os.path.join(self.filename, os.pardir))
+                os.chdir(dname)
+                cmd = "python"
+                self.readData(cmd)
+            else:
+                self.filename = "/tmp/tmp.py"
+                self.fileSave()
+                self.runPy2()
+        else:
+            self.mylabel.setText("no code to run")
             
     def readData(self, cmd):
         self.process.start(cmd,['-u', self.filename])
@@ -636,14 +607,19 @@ class myEditor(QMainWindow):
         self.editor.copy()
         clipboard = QApplication.clipboard();
         originalText = clipboard.text()
-        clipboard.setText("/*" + originalText + "*/")
+        mt1 = "'''" + "\n"
+        mt2 = "\n" + "'''"
+        mt = mt1 + originalText + mt2
+        clipboard.setText(mt)
         self.editor.paste()
         
     def uncommentBlock(self):
         self.editor.copy()
         clipboard = QApplication.clipboard();
         originalText = clipboard.text()
-        clipboard.setText(originalText.replace("*/", "").replace("/*", ""))
+        mt1 = "'''" + "\n" 
+        mt2 = "\n" + "'''"
+        clipboard.setText(originalText.replace(mt1, "").replace(mt2, ""))
         self.editor.paste()
         
         self.mylabel.setText("added block comment")
@@ -654,15 +630,11 @@ class myEditor(QMainWindow):
         self.mylabel.setText("added line comment")
         
     def uncommentLine(self):
-        self.deleteComment()
-        
-    def deleteComment(self):
-        self.cursor.clearSelection()
         self.editor.moveCursor(self.cursor.StartOfLine, self.cursor.MoveAnchor)
         self.editor.moveCursor(self.cursor.Right, self.cursor.KeepAnchor)
-        self.cursor.select(QTextCursor.BlockUnderCursor)
-        self.editor.insertPlainText("")
-        self.mylabel.setText("removed line comment")
+        if (self.editor.textCursor().selectedText().startswith("#")):
+            self.editor.textCursor().deleteChar()
+            self.mylabel.setText("removed line comment")
         
     def goToLine(self, ft):
         self.editor.moveCursor(int(self.gofield.currentText()),
@@ -673,16 +645,18 @@ class myEditor(QMainWindow):
         if self.editor.find(word):
             linenumber = self.editor.textCursor().blockNumber() + 1
             self.mylabel.setText("found <b>'" + self.findfield.text() + "'</b> at Line: " + str(linenumber))
+            self.editor.centerCursor()
         else:
             self.mylabel.setText("<b>'" + self.findfield.text() + "'</b> not found")
             self.editor.moveCursor(QTextCursor.Start)            
             if self.editor.find(word):
                 linenumber = self.editor.textCursor().blockNumber() + 1
                 self.mylabel.setText("found <b>'" + self.findfield.text() + "'</b> at Line: " + str(linenumber))
+                self.editor.centerCursor()
             
     def findBookmark(self, word):
         if self.editor.find(word):
-            linenumber = self.editor.textCursor().blockNumber() + 1
+            linenumber = self.getLineNumber() #self.editor.textCursor().blockNumber() + 1
             self.mylabel.setText("found <b>'" + self.findfield.text() + "'</b> at Line: " + str(linenumber))
             
     def handleQuit(self):
@@ -781,7 +755,7 @@ class myEditor(QMainWindow):
             format.setBackground(QColor('white'))
             self.right_selected_bracket.format = format
             self.right_selected_bracket.cursor = cursor
-#            '''
+
     def paintEvent(self, event):
         highlighted_line = QTextEdit.ExtraSelection()
         highlighted_line.format.setBackground(lineHighlightColor)
@@ -833,8 +807,15 @@ class myEditor(QMainWindow):
         self.setModified(True)
         
     def setCurrentFile(self, fileName):
-        settings = QSettings('Axel Schneider', 'PyEdit')
-        files = settings.value('recentFileList')
+        self.filename = fileName
+        #'''
+        if self.filename:
+            self.setWindowTitle(self.strippedName(self.filename) + "[*]")
+            self.mylabel.setText("File '" + fileName + "' loaded succesfully.")
+        else:
+            self.setWindowTitle("no File")      
+        
+        files = self.settings.value('recentFileList', [])
 
         try:
             files.remove(fileName)
@@ -844,16 +825,16 @@ class myEditor(QMainWindow):
         files.insert(0, fileName)
         del files[self.MaxRecentFiles:]
 
-        settings.setValue('recentFileList', files)
+        self.settings.setValue('recentFileList', files)
 
         for widget in QApplication.topLevelWidgets():
             if isinstance(widget, myEditor):
                 widget.updateRecentFileActions()
+        #'''
 
     def updateRecentFileActions(self):
         mytext = ""
-        settings = QSettings('Axel Schneider', 'PyEdit')
-        files = settings.value('recentFileList')
+        files = self.settings.value('recentFileList', [])
 
         numRecentFiles = min(len(files), self.MaxRecentFiles)
 
@@ -862,6 +843,7 @@ class myEditor(QMainWindow):
             self.recentFileActs[i].setText(text)
             self.recentFileActs[i].setData(files[i])
             self.recentFileActs[i].setVisible(True)
+            self.recentFileActs[i].setIcon(QIcon.fromTheme("gnome-mime-text-x-python"))
 
         for j in range(numRecentFiles, self.MaxRecentFiles):
             self.recentFileActs[j].setVisible(False)
@@ -870,6 +852,13 @@ class myEditor(QMainWindow):
         
     def strippedName(self, fullFileName):
         return QFileInfo(fullFileName).fileName()
+        
+    def clearRecentFiles(self):
+        self.settings.clear()
+        self.updateRecentFileActions()
+        
+    def msgbox(self,title, message):
+        QMessageBox.warning(self, title, message)
   
 def stylesheet2(self):
     return """
@@ -895,9 +884,11 @@ if __name__ == '__main__':
     win.setWindowIcon(QIcon.fromTheme("gnome-mime-text-x-python"))
     win.setWindowTitle("PyEdit" + "[*]")
     win.setMinimumSize(640,250)
+#    app.setEffectEnabled(Qt.UI_AnimateMenu, True)
     win.showMaximized()
     if len(sys.argv) > 1:
         print(sys.argv[1])
         win.openFileOnStart(sys.argv[1])
     app.exec_()
+
       
