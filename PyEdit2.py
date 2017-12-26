@@ -954,7 +954,7 @@ class myEditor(QMainWindow):
         
     def insertTemplate(self):
         line = int(self.getLineNumber())
-        path = "./icons/templates/" + self.templates.itemText(self.templates.currentIndex()) + ".txt"
+        path = "./templates/" + self.templates.itemText(self.templates.currentIndex()) + ".txt"
         if path:
             inFile = QFile(path)
             if inFile.open(QFile.ReadOnly | QFile.Text):
