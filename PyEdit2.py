@@ -117,7 +117,7 @@ class myEditor(QMainWindow):
         ### statusbar
         self.statusBar()
         self.statusBar().setStyleSheet(stylesheet2(self))
-#        self.statusBar().showMessage('Welcome')
+        self.statusBar().showMessage('Welcome')
         ### begin toolbar
         tb = QToolBar(self)
         tb.setMovable(True)
@@ -326,7 +326,6 @@ class myEditor(QMainWindow):
         layoutV.addLayout(layoutH)
         self.mylabel.setMinimumHeight(28)
         self.mylabel.setStyleSheet(stylesheet2(self))
-#        self.statusBar().showMessage("Welcome to PyEdit2")
         layoutV.addWidget(self.mylabel)
         ### main window
         mq = QWidget(self)
@@ -444,7 +443,6 @@ class myEditor(QMainWindow):
             list = []
             ot = self.editor.textCursor().selectedText()
             theList  = ot.splitlines()
-            self.statusBar().showMessage(theList[1])
             linecount = ot.count(newline)
             for i in range(linecount):
                 list.insert(i, tab + theList[i])
@@ -458,7 +456,6 @@ class myEditor(QMainWindow):
             list = []
             ot = self.editor.textCursor().selectedText()
             theList  = ot.splitlines()
-            self.statusBar().showMessage(theList[1])
             linecount = ot.count(newline)
             for i in range(linecount):
                 list.insert(i, (theList[i]).replace(tab, "", 1))
@@ -787,34 +784,43 @@ class myEditor(QMainWindow):
         self.statusBar().showMessage("added block comment")
             
     def commentLine(self):
+        newline = u"\u2029"
+        comment = "#"
+        list = []
+        ot = self.editor.textCursor().selectedText()
         if not self.editor.textCursor().selectedText() == "":
-            newline = u"\u2029"
-            comment = "#"
-            list = []
-            ot = self.editor.textCursor().selectedText()
+            ### multiple lines selected        
             theList  = ot.splitlines()
-            self.statusBar().showMessage(theList[1])
             linecount = ot.count(newline)
             for i in range(linecount + 1):
                 list.insert(i, comment + theList[i])
             self.editor.textCursor().insertText(newline.join(list))
             self.setModified(True)    
             self.statusBar().showMessage("added comment")
-        
+        else:
+            ### one line selected
+            self.editor.moveCursor(QTextCursor.StartOfLine)
+            self.editor.textCursor().insertText("#")
+            
+            
     def uncommentLine(self):
+        comment = "#"
+        newline = u"\u2029"
+        list = []
+        ot = self.editor.textCursor().selectedText()
         if not self.editor.textCursor().selectedText() == "":
-            comment = "#"
-            newline = u"\u2029"
-            list = []
-            ot = self.editor.textCursor().selectedText()
+        ### multiple lines selected 
             theList  = ot.splitlines()
-            self.statusBar().showMessage(theList[1])
             linecount = ot.count(newline)
             for i in range(linecount + 1):
                 list.insert(i, (theList[i]).replace(comment, "", 1))
             self.editor.textCursor().insertText(newline.join(list))
             self.setModified(True)    
             self.statusBar().showMessage("comment removed")
+        else:
+            ### one line selected
+            self.editor.moveCursor(QTextCursor.StartOfLine)
+            self.editor.textCursor().deleteChar()
         
     def goToLine(self, ft):
         self.editor.moveCursor(int(self.gofield.currentText()),
@@ -840,8 +846,9 @@ class myEditor(QMainWindow):
             self.statusBar().showMessage("found <b>'" + self.findfield.text() + "'</b> at Line: " + str(linenumber))
             
     def handleQuit(self):
-        print("Goodbye ...")
-        app.quit()
+        if self.maybeSave():
+            print("Goodbye ...")
+            app.quit()
 
     def set_numbers_visible(self, value = True):
         self.numbers.setVisible(False)
@@ -1144,7 +1151,3 @@ if __name__ == '__main__':
         win.openFileOnStart(argv[1])
     
     app.exec_()
-
-
-
-      
