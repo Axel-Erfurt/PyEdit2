@@ -2,66 +2,10 @@
 # -- coding: utf-8 --
 
 from PyQt5.QtWidgets import QPlainTextEdit, QWidget, QVBoxLayout, QApplication, QFileDialog, QMessageBox, QHBoxLayout, \
-							 QTextEdit, QToolBar, QComboBox, QAction, QLineEdit, QDialog,\
-							 QToolButton, QMenu, QMainWindow, QInputDialog, QColorDialog, QStatusBar, QSystemTrayIcon
-from PyQt5.QtGui import QIcon, QPainter, QTextFormat, QColor, QTextCursor, QKeySequence, QClipboard, QTextDocument, QPixmap
-from PyQt5.QtCore import Qt, QVariant, QRect, QDir, QFile, QDirIterator, QFileInfo, QTextStream, QSettings, QProcess, QPoint, QByteArray
-from PyQt5 import QtPrintSupport
-#import syntax_py2 as syntax_py
-import syntax_py
-from os import path, pardir, system as shell
-from sys import argv
-
-lineBarColor = QColor("#DED6AC")
-lineHighlightColor  = QColor("#F5F5F5")
-tab = chr(9)
-eof = "\n"
-class NumberBar(QWidget):
-	def __init__(self, parent = None):
-		super(NumberBar, self).__init__(parent)
-		self.editor = parent
-		layout = QVBoxLayout()
-		self.editor.blockCountChanged.connect(self.update_width)
-		self.editor.updateRequest.connect(self.update_on_scroll)
-		self.update_width('1')
-
-	def update_on_scroll(self, rect, scroll):
-		if self.isVisible():
-			if scroll:
-				self.scroll(0, scroll)
-			else:
-				self.update()
-
-	def update_width(self, string):
-		width = self.fontMetrics().width(str(string)) + 8
-		if self.width() != width:
-			self.setFixedWidth(width)
-
-	def paintEvent(self, event):
-		if self.isVisible():
-			block = self.editor.firstVisibleBlock()
-			height = self.fontMetrics().height()
-			number = block.blockNumber()
-			painter = QPainter(self)
-			painter.fillRect(event.rect(), lineBarColor)
-			painter.drawRect(0, 0, event.rect().width() - 1, event.rect().height() - 1)
-			font = painter.font()
-
-			current_block = self.editor.textCursor().block().blockNumber() + 1
-
-			condition = True
-			while block.isValid() and condition:
-				block_geometry = self.editor.blockBoundingGeometry(block)
-				offset = self.editor.contentOffset()
-				block_top = block_geometry.translated(offset).top()
-#!/usr/bin/python3
-# -- coding: utf-8 --
-
-from PyQt5.QtWidgets import QPlainTextEdit, QWidget, QVBoxLayout, QApplication, QFileDialog, QMessageBox, QHBoxLayout, \
                              QTextEdit, QToolBar, QComboBox, QAction, QLineEdit, QDialog, QPushButton, \
                              QToolButton, QMenu, QMainWindow, QInputDialog, QColorDialog, QStatusBar, QSystemTrayIcon
 from PyQt5.QtGui import QIcon, QPainter, QTextFormat, QColor, QTextCursor, QKeySequence, QClipboard, QTextDocument, QPixmap
-from PyQt5.QtCore import Qt, QVariant, QRect, QDir, QFile, QDirIterator, QFileInfo, QTextStream, QSettings, QProcess, QPoint, QByteArray
+from PyQt5.QtCore import Qt, QVariant, QRect, QDir, QFile, QDirIterator, QFileInfo, QTextStream, QSettings, QProcess, QPoint, QByteArray, QSize
 from PyQt5 import QtPrintSupport
 #import syntax_py2 as syntax_py
 import syntax_py
@@ -72,6 +16,8 @@ lineBarColor = QColor("#DED6AC")
 lineHighlightColor  = QColor("#F5F5F5")
 tab = chr(9)
 eof = "\n"
+iconsize = QSize(16, 16)
+
 class NumberBar(QWidget):
     def __init__(self, parent = None):
         super(NumberBar, self).__init__(parent)
@@ -139,7 +85,7 @@ class myEditor(QMainWindow):
         self.windowList = []
         self.recentFileActs = []
         self.settings = QSettings("PyEdit", "PyEdit")
-        self.dirpath = QDir.homePath() + "/Documents/python_files/"
+        self.dirpath = QDir.homePath() + "/Dokumente/python_files/"
         self.setAttribute(Qt.WA_DeleteOnClose)
         self.setWindowIcon(QIcon.fromTheme("applications-python"))
         # Editor Widget ...
@@ -174,55 +120,56 @@ class myEditor(QMainWindow):
         self.statusBar().setStyleSheet(stylesheet2(self))
         self.statusBar().showMessage('Welcome')
         ### begin toolbar
-        tb = QToolBar(self)
+        tb = self.addToolBar("File")
+        tb.setIconSize(QSize(iconsize))
         tb.setMovable(True)
         tb.setAllowedAreas(Qt.AllToolBarAreas)
         tb.setFloatable(True)
-        tb.setWindowTitle("File Toolbar")        
+       
         ### file buttons
         self.newAct = QAction("&New", self, shortcut=QKeySequence.New,
-                toolTip="new file", triggered=self.newFile)
+                statusTip="new file", triggered=self.newFile)
         self.newAct.setIcon(QIcon.fromTheme("document-new"))
         tb.addAction(self.newAct)
         
         self.openAct = QAction("&Open", self, shortcut=QKeySequence.Open,
-                toolTip="open file", triggered=self.openFile)
+                statusTip="open file", triggered=self.openFile)
         self.openAct.setIcon(QIcon.fromTheme("document-open"))
         tb.addAction(self.openAct)
 
         self.saveAct = QAction("&Save", self, shortcut=QKeySequence.Save,
-                toolTip="save file", triggered=self.fileSave)
+                statusTip="save file", triggered=self.fileSave)
         self.saveAct.setIcon(QIcon.fromTheme("document-save"))
         tb.addAction(self.saveAct)
         
         self.saveAsAct = QAction("&Save as ...", self, shortcut=QKeySequence.SaveAs,
-                toolTip="save file as ...", triggered=self.fileSaveAs)
+                statusTip="save file as ...", triggered=self.fileSaveAs)
         self.saveAsAct.setIcon(QIcon.fromTheme("document-save-as"))
         tb.addAction(self.saveAsAct)
 
         self.jumpToAct = QAction("go to Definition", self, shortcut="F12",
-                                     toolTip="go to def", triggered=self.gotoBookmarkFromMenu)
+                                     statusTip="go to def", triggered=self.gotoBookmarkFromMenu)
         self.jumpToAct.setIcon(QIcon.fromTheme("go-next"))
         
         ### comment buttons       
         tb.addSeparator()           
         self.commentAct = QAction("#comment Line", self, shortcut="F2",
-                toolTip="comment Line (F2)", triggered=self.commentLine)
+                statusTip="comment Line (F2)", triggered=self.commentLine)
         self.commentAct.setIcon(QIcon.fromTheme("text-richtext"))
         tb.addAction(self.commentAct)
                          
         self.uncommentAct = QAction("uncomment Line", self, shortcut="F3",
-                toolTip="uncomment Line (F3)", triggered=self.uncommentLine)
+                statusTip="uncomment Line (F3)", triggered=self.uncommentLine)
         self.uncommentAct.setIcon(QIcon.fromTheme("text-plain"))
         tb.addAction(self.uncommentAct)  
         
         self.commentBlockAct = QAction("comment Block", self, shortcut="F6",
-                toolTip="comment selected block (F6)", triggered=self.commentBlock)
+                statusTip="comment selected block (F6)", triggered=self.commentBlock)
         self.commentBlockAct.setIcon(QIcon.fromTheme("text-richtext"))
         tb.addAction(self.commentBlockAct)  
         
         self.uncommentBlockAct = QAction("uncomment Block (F7)", self, shortcut="F7",
-                toolTip="uncomment selected block (F7)", triggered=self.uncommentBlock)
+                statusTip="uncomment selected block (F7)", triggered=self.uncommentBlock)
         self.uncommentBlockAct.setIcon(QIcon.fromTheme("text-plain"))
         tb.addAction(self.uncommentBlockAct)
         ### color chooser
@@ -233,18 +180,19 @@ class myEditor(QMainWindow):
         ###insert templates
         tb.addSeparator()
         self.templates = QComboBox()
+        self.templates.setStyleSheet(stylesheet2(self))
         self.templates.setFixedWidth(200)
         self.templates.setToolTip("insert template")
         self.templates.activated[str].connect(self.insertTemplate)
         tb.addWidget(self.templates)
         ### path python buttons      
         tb.addSeparator()   
-        self.py2Act = QAction("path in Python 2 (F4)", self, shortcut="F4",
-                toolTip="run in Python 2 (F4)", triggered=self.runPy2)
+        self.py2Act = QAction("run in Python 2 (F4)", self, shortcut="F4",
+                statusTip="run in Python 2 (F4)", triggered=self.runPy2)
         self.py2Act.setIcon(QIcon.fromTheme("applications-python"))
         tb.addAction(self.py2Act)                               
         self.py3Act = QAction("run in Python 3 (F5)", self, shortcut="F5",
-                toolTip="run in Python 3 (F5)", triggered=self.runPy3)
+                statusTip="run in Python 3 (F5)", triggered=self.runPy3)
         self.py3Act.setIcon(QIcon.fromTheme("applications-python"))
         tb.addAction(self.py3Act)
         tb.addSeparator()
@@ -252,31 +200,32 @@ class myEditor(QMainWindow):
         tb.addSeparator()
         ### print preview
         self.printPreviewAct = QAction("preview", self, shortcut=QKeySequence.Print,
-                toolTip="Preview Document", triggered=self.handlePrintPreview)
+                statusTip="Preview Document", triggered=self.handlePrintPreview)
         self.printPreviewAct.setIcon(QIcon.fromTheme("document-print-preview"))
         tb.addAction(self.printPreviewAct)
         ### print
         self.printAct = QAction("print", self, shortcut=QKeySequence.Print,
-                toolTip="Print Document", triggered=self.handlePrint)
+                statusTip="Print Document", triggered=self.handlePrint)
         self.printAct.setIcon(QIcon.fromTheme("document-print"))
         tb.addAction(self.printAct) 
         ### about buttons
         tb.addSeparator()
         tb.addAction(QIcon.fromTheme("info"),"&About PyEdit", self.about)
         tb.addSeparator()
-#        tb.addAction(QIcon.fromTheme("help-about"),"About &PyQT", QApplication.instance().aboutQt)
         ### exit button
         self.exitAct = QAction("exit", self, shortcut=QKeySequence.Quit,
-                toolTip="Exit", triggered=self.handleQuit)
+                statusTip="Exit", triggered=self.handleQuit)
         self.exitAct.setIcon(QIcon.fromTheme("application-exit"))
         tb.addAction(self.exitAct)     
         ### end toolbar
         self.indentAct = QAction(QIcon.fromTheme("format-indent-more"), "indent more", self, triggered = self.indentLine, shortcut = "F8")
         self.indentLessAct = QAction(QIcon.fromTheme("format-indent-less"), "indent less", self, triggered = self.indentLessLine, shortcut = "F9")
         ### find / replace toolbar
-        tbf = QToolBar(self)
-        tbf.setWindowTitle("Find Toolbar")   
+        self.addToolBarBreak()
+        tbf = self.addToolBar("Find")
+        tbf.setIconSize(QSize(iconsize))
         self.findfield = QLineEdit()
+        self.findfield.setStyleSheet(stylesheet2(self))
         self.findfield.addAction(QIcon.fromTheme("edit-find"), QLineEdit.LeadingPosition)
         self.findfield.setClearButtonEnabled(True)
         self.findfield.setFixedWidth(150)
@@ -287,6 +236,7 @@ class myEditor(QMainWindow):
         self.findfield.returnPressed.connect(self.findText)
         tbf.addWidget(self.findfield)
         self.replacefield = QLineEdit()
+        self.replacefield.setStyleSheet(stylesheet2(self))
         self.replacefield.addAction(QIcon.fromTheme("edit-find-and-replace"), QLineEdit.LeadingPosition)
         self.replacefield.setClearButtonEnabled(True)
         self.replacefield.setFixedWidth(150)
@@ -298,6 +248,7 @@ class myEditor(QMainWindow):
         tbf.addSeparator()
         
         self.repAllAct = QPushButton("replace all") 
+        self.repAllAct.setStyleSheet(stylesheet2(self))
         self.repAllAct.setIcon(QIcon.fromTheme("gtk-find-and-replace"))
         self.repAllAct.setStatusTip("replace all")
         self.repAllAct.clicked.connect(self.replaceAll)
@@ -307,6 +258,7 @@ class myEditor(QMainWindow):
         tbf.addAction(self.indentLessAct)
         tbf.addSeparator()
         self.gotofield = QLineEdit()
+        self.gotofield.setStyleSheet(stylesheet2(self))
         self.gotofield.addAction(QIcon.fromTheme("next"), QLineEdit.LeadingPosition)
         self.gotofield.setClearButtonEnabled(True)
         self.gotofield.setFixedWidth(120)
@@ -317,19 +269,20 @@ class myEditor(QMainWindow):
         
         tbf.addSeparator() 
         self.bookmarks = QComboBox()
+        self.bookmarks.setStyleSheet(stylesheet2(self))
         self.bookmarks.setFixedWidth(200)
         self.bookmarks.setToolTip("go to bookmark")
         self.bookmarks.activated[str].connect(self.gotoBookmark)
         tbf.addWidget(self.bookmarks)
 
         self.bookAct = QAction("add Bookmark", self,
-                toolTip="add Bookmark", triggered=self.addBookmark)
+                statusTip="add Bookmark", triggered=self.addBookmark)
         self.bookAct.setIcon(QIcon.fromTheme("previous"))
         tbf.addAction(self.bookAct)
         
         tbf.addSeparator()
         self.bookrefresh = QAction("update Bookmarks", self,
-                toolTip="update Bookmarks", triggered=self.findBookmarks)
+                statusTip="update Bookmarks", triggered=self.findBookmarks)
         self.bookrefresh.setIcon(QIcon.fromTheme("view-refresh"))
         tbf.addAction(self.bookrefresh)
         tbf.addAction(QAction(QIcon.fromTheme("document-properties"), "check && reindent Text", self, triggered=self.reindentText))
@@ -340,11 +293,12 @@ class myEditor(QMainWindow):
                 triggered=self.textColor)
         tbf.addSeparator()
         tbf.addAction(self.actionTextColor)
-#        tbf.addAction(QAction(QIcon.fromTheme("ok"), "Test Button", self, triggered=self.Test))
         layoutV = QVBoxLayout()
         
         bar=self.menuBar()
+        bar.setStyleSheet(stylesheet2(self))
         self.filemenu=bar.addMenu("File")
+        self.filemenu.setStyleSheet(stylesheet2(self))
         self.separatorAct = self.filemenu.addSeparator()
         self.filemenu.addAction(self.newAct)
         self.filemenu.addAction(self.openAct)
@@ -362,6 +316,7 @@ class myEditor(QMainWindow):
         self.filemenu.addAction(self.exitAct)
         
         editmenu = bar.addMenu("Edit")
+        editmenu.setStyleSheet(stylesheet2(self))
         editmenu.addAction(QAction(QIcon.fromTheme('edit-undo'), "Undo", self, triggered = self.editor.undo, shortcut = "Ctrl+u"))
         editmenu.addAction(QAction(QIcon.fromTheme('edit-redo'), "Redo", self, triggered = self.editor.redo, shortcut = "Shift+Ctrl+u"))
         editmenu.addSeparator()
@@ -385,9 +340,7 @@ class myEditor(QMainWindow):
         editmenu.addSeparator()
         editmenu.addAction(self.indentAct)
         editmenu.addAction(self.indentLessAct)
-        layoutV.addWidget(bar)      
-        layoutV.addWidget(tb)
-        layoutV.addWidget(tbf)
+
         layoutV.addLayout(layoutH)
         self.mylabel.setMinimumHeight(28)
         self.mylabel.setStyleSheet(stylesheet2(self))
@@ -421,15 +374,15 @@ class myEditor(QMainWindow):
         self.editor.customContextMenuRequested.connect(self.contextMenuRequested)
         
         self.loadTemplates()   
-#        self.editor.keyPressEvent = self.keyPressEvent
+        self.editor.keyPressEvent = self.keyPressEvent
 
     def keyPressEvent(self, event):
-        if  self.editor.hasFocus() and event.key() == Qt.Key_F1:
-            self.editor.textCursor().insertText("    ")
-            self.statusBar().showMessage("inserted 4 spaces")
-            event.accept()
-#        else:
-#            super(myEditor, self).keyPressEvent(event)
+        if  self.editor.hasFocus():
+            if event.key() == Qt.Key_Tab:
+                self.editor.textCursor().insertText("    ")
+                self.statusBar().showMessage("inserted 4 spaces")
+            else:
+                return QPlainTextEdit.keyPressEvent(self.editor, event)
 
     def cursorPositionChanged(self):
         line = self.editor.textCursor().blockNumber() + 1
@@ -490,6 +443,13 @@ class myEditor(QMainWindow):
             else:
                 colorname = col.name()
                 self.editor.textCursor().insertText(colorname.replace("#", ""))
+        else:
+            col = QColorDialog.getColor(QColor("black"), self)
+            if not col.isValid():
+                return
+            else:
+                colorname = col.name()
+                self.editor.textCursor().insertText(colorname)
 
     ### QPlainTextEdit contextMenu
     def contextMenuRequested(self,point):
@@ -515,14 +475,14 @@ class myEditor(QMainWindow):
             cmenu.addAction(self.indentLessAct)       
         cmenu.addSeparator()
         cmenu.addAction(QIcon.fromTheme("preferences-color"),"insert QColor", self.insertColor)
-        if not self.editor.textCursor().selectedText() == "":
-            cmenu.addSeparator()
-            cmenu.addAction(QIcon.fromTheme("preferences-color"),"change Color", self.changeColor)
+#        if not self.editor.textCursor().selectedText() == "":
+        cmenu.addSeparator()
+        cmenu.addAction(QIcon.fromTheme("preferences-color"),"change Color", self.changeColor)
         cmenu.exec_(self.editor.mapToGlobal(point))    
         
     def replaceThis(self):
         rtext = self.editor.textCursor().selectedText()
-        text = QInputDialog.getText(self, ("replace with"),(""), QLineEdit.Normal, "")
+        text = QInputDialog.getText(self, "replace with","replace '" + rtext + "' with:", QLineEdit.Normal, "")
         oldtext = self.editor.document().toPlainText()
         if not (text[0] == ""):
             newtext = oldtext.replace(rtext, text[0])
@@ -537,7 +497,7 @@ class myEditor(QMainWindow):
             theList  = ot.splitlines()
             linecount = ot.count(newline)
             for i in range(linecount + 1):
-                list.insert(i, tab + theList[i])
+                list.insert(i, "    " + theList[i])
             self.editor.textCursor().insertText(newline.join(list))
             self.setModified(True)    
             self.statusBar().showMessage("tabs indented")
@@ -550,10 +510,10 @@ class myEditor(QMainWindow):
             theList  = ot.splitlines()
             linecount = ot.count(newline)
             for i in range(linecount + 1):
-                list.insert(i, (theList[i]).replace(tab, "", 1))
+                list.insert(i, (theList[i]).replace("    ", "", 1))
             self.editor.textCursor().insertText(newline.join(list))
             self.setModified(True)    
-            self.statusBar().showMessage("tabs indented")
+            self.statusBar().showMessage("tabs deleted")
         
     def dataReady(self):
         out = ""
@@ -562,15 +522,14 @@ class myEditor(QMainWindow):
         except TypeError:
             self.msgbox("Error", str(self.process.readAll(), encoding = 'utf8'))
             out = str(self.process.readAll()).rstrip()
-        self.mylabel.append(out)
         self.mylabel.moveCursor(self.cursor.Start)
+        self.mylabel.append(out)    
         if self.mylabel.find("line", QTextDocument.FindWholeWords):
             t = self.mylabel.toPlainText().partition("line")[2].partition("\n")[0].lstrip()
             if t.find(",", 0):
                 tr = t.partition(",")[0]
             else:
                 tr = t.lstrip()
-#            self.msgbox("Error", tr)
             self.gotoErrorLine(tr)
         else:
             return
@@ -1255,10 +1214,28 @@ border: 1px solid #1EAE3D;
 }
 QStatusBar
 {
-height: 22px;
-background: transparent;
 color: #4F4F4F;
-font-size: 9pt;
+font-size: 8pt;
+}
+QLineEdit
+{
+font-size: 8pt;
+}
+QPushButton
+{
+font-size: 8pt;
+}
+QComboBox
+{
+font-size: 8pt;
+}
+QMenuBar
+{
+font-size: 8pt;
+}
+QMenu
+{
+font-size: 8pt;
 }
     """       
 
@@ -1278,4 +1255,5 @@ if __name__ == '__main__':
         win.openFileOnStart(argv[1])
     
     app.exec_()
+
 
