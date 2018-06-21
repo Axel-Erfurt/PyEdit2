@@ -9,14 +9,15 @@ from PyQt5.QtCore import Qt, QVariant, QRect, QDir, QFile, QDirIterator, QFileIn
 from PyQt5 import QtPrintSupport
 #import syntax_py2 as syntax_py
 import syntax_py
-from os import path, pardir, system as shell
+from os import path, pardir, system as shell, popen
 from sys import argv
+
 
 lineBarColor = QColor("#DED6AC")
 lineHighlightColor  = QColor("#F5F5F5")
 tab = chr(9)
 eof = "\n"
-iconsize = QSize(16, 16)
+iconsize = QSize(20, 20)
 
 class NumberBar(QWidget):
     def __init__(self, parent = None):
@@ -78,7 +79,8 @@ class NumberBar(QWidget):
 class myEditor(QMainWindow):
     def __init__(self, parent = None):
         super(myEditor, self).__init__(parent)
-        self.appfolder = "/home/brian/myApps/PyEdit"
+        root = QFileInfo(__file__).absolutePath()
+        self.appfolder = root ###"/home/brian/myApps/PyEdit"
         #shell("cd " + self.appfolder)
         self.statusBar().showMessage(self.appfolder)
         self.MaxRecentFiles = 10
@@ -89,7 +91,7 @@ class myEditor(QMainWindow):
         self.setAttribute(Qt.WA_DeleteOnClose)
         self.setWindowIcon(QIcon.fromTheme("applications-python"))
         # Editor Widget ...
-#        QIcon.setThemeName('Arc-Icons')
+#        QIcon.setThemeName('Mint-X')
         self.editor = QPlainTextEdit()
         self.editor.setStyleSheet(stylesheet2(self))
         self.editor.setTabStopWidth(20)
@@ -381,6 +383,8 @@ class myEditor(QMainWindow):
             if event.key() == Qt.Key_Tab:
                 self.editor.textCursor().insertText("    ")
                 self.statusBar().showMessage("inserted 4 spaces")
+            elif event.key() == Qt.Key_F10:
+                self.findNextWord()
             else:
                 return QPlainTextEdit.keyPressEvent(self.editor, event)
 
@@ -461,6 +465,9 @@ class myEditor(QMainWindow):
         if not self.editor.textCursor().selectedText() == "":
             cmenu.addAction(QIcon.fromTheme("gtk-find-and-replace"),"replace all occurrences with", self.replaceThis)
             cmenu.addSeparator()
+        cmenu.addAction(QIcon.fromTheme("zeal"),"show help with 'zeal'", self.showZeal)
+        cmenu.addAction(QIcon.fromTheme("gtk-find-"),"find this (F10)", self.findNextWord)
+        cmenu.addSeparator()
         cmenu.addAction(self.py2Act)
         cmenu.addAction(self.py3Act)
         cmenu.addSeparator()
@@ -488,6 +495,25 @@ class myEditor(QMainWindow):
             newtext = oldtext.replace(rtext, text[0])
             self.editor.setPlainText(newtext)
             self.setModified(True)
+
+    def showZeal(self):
+        if self.editor.textCursor().selectedText() == "":
+            self.editor.moveCursor(QTextCursor.StartOfWord, QTextCursor.MoveAnchor)
+            self.editor.moveCursor(QTextCursor.EndOfWord, QTextCursor.KeepAnchor)
+        rtext = self.editor.textCursor().selectedText()
+#        self.process.start("zeal", ["-q", rtext])
+        cmd = "zeal -q " + str(rtext)
+#        shell(cmd)
+        popen(cmd , mode='r', buffering=-1)
+
+    def findNextWord(self):
+        if self.editor.textCursor().selectedText() == "":
+            self.editor.moveCursor(QTextCursor.StartOfWord, QTextCursor.MoveAnchor)
+            self.editor.moveCursor(QTextCursor.EndOfWord, QTextCursor.KeepAnchor)
+        rtext = self.editor.textCursor().selectedText()
+        self.findfield.setText(rtext)
+        self.findText()
+
         
     def indentLine(self):
         if not self.editor.textCursor().selectedText() == "":
@@ -648,8 +674,13 @@ class myEditor(QMainWindow):
     def openRecentFile(self):
         action = self.sender()
         if action:
+            myfile = action.data()
+            print(myfile)
             if (self.maybeSave()):
-                self.openFileOnStart(action.data())
+                if QFile.exists(myfile):
+                    self.openFileOnStart(myfile)
+                else:
+                    self.msgbox("Info", "File does not exist!")
             
         ### New File
     def newFile(self):
@@ -1255,5 +1286,4 @@ if __name__ == '__main__':
         win.openFileOnStart(argv[1])
     
     app.exec_()
-
 
