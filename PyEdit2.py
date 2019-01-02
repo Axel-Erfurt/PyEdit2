@@ -11,12 +11,9 @@ from PyQt5.QtCore import (Qt, QVariant, QRect, QDir, QFile, QFileInfo, QTextStre
                                             QProcess, QPoint, QSize, QCoreApplication, QStringListModel, QLibraryInfo)
 from PyQt5 import QtPrintSupport
 from sys import argv
-import inspect
 from syntax_py import *
 import os
 import sys
-import re
-import customcompleter_rc
 
 lineBarColor = QColor("#d3d7cf")
 lineHighlightColor  = QColor("#fce94f")
