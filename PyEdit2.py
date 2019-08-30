@@ -195,7 +195,8 @@ class myEditor(QMainWindow):
         self.completer.setCompletionRole(Qt.EditRole)
         self.editor.setCompleter(self.completer)
 
-        self.setStyleSheet(stylesheet2(self))
+        if int(sys.version[0]) > 2:
+            self.setStyleSheet(stylesheet2(self))
 #        self.editor.setTabStopWidth(20)
         self.editor.cursorPositionChanged.connect(self.cursorPositionChanged)
         self.extra_selections = []
@@ -206,8 +207,6 @@ class myEditor(QMainWindow):
         self.shellWin = QTextEdit()
         self.shellWin.setContextMenuPolicy(Qt.CustomContextMenu)
         self.shellWin.setFixedHeight(90)
-#        self.shellWin.setReadOnly(True)
-#        self.shellWin.setTextInteractionFlags(Qt.TextSelectableByMouse)
         # Line Numbers ...
         self.numbers = NumberBar(self.editor)
         self.createActions()
@@ -223,11 +222,9 @@ class myEditor(QMainWindow):
         self.trayIcon.show()
         ### statusbar
         self.statusBar()
-        self.statusBar().setStyleSheet(stylesheet2(self))
         self.statusBar().showMessage('Welcome')
         ### begin toolbar
         tb = self.addToolBar("File")
-        tb.setStyleSheet(stylesheet2(self))
         tb.setContextMenuPolicy(Qt.PreventContextMenu)
         tb.setIconSize(QSize(iconsize))
         tb.setMovable(False)
@@ -288,7 +285,6 @@ class myEditor(QMainWindow):
         ###insert templates
         tb.addSeparator()
         self.templates = QComboBox()
-        self.templates.setStyleSheet(stylesheet2(self))
         self.templates.setFixedWidth(120)
         self.templates.setToolTip("insert template")
         self.templates.activated[str].connect(self.insertTemplate)
@@ -355,12 +351,10 @@ class myEditor(QMainWindow):
         ### find / replace toolbar
         self.addToolBarBreak()
         tbf = self.addToolBar("Find")
-        tbf.setStyleSheet(stylesheet2(self))
         tbf.setContextMenuPolicy(Qt.PreventContextMenu)
         tbf.setMovable(False)
         tbf.setIconSize(QSize(iconsize))
         self.findfield = QLineEdit()
-        self.findfield.setStyleSheet(stylesheet2(self))
         self.findfield.addAction(QIcon.fromTheme("edit-find"), QLineEdit.LeadingPosition)
         self.findfield.setClearButtonEnabled(True)
         self.findfield.setFixedWidth(150)
@@ -371,7 +365,6 @@ class myEditor(QMainWindow):
         self.findfield.returnPressed.connect(self.findText)
         tbf.addWidget(self.findfield)
         self.replacefield = QLineEdit()
-        self.replacefield.setStyleSheet(stylesheet2(self))
         self.replacefield.addAction(QIcon.fromTheme("edit-find-and-replace"), QLineEdit.LeadingPosition)
         self.replacefield.setClearButtonEnabled(True)
         self.replacefield.setFixedWidth(150)
@@ -384,7 +377,6 @@ class myEditor(QMainWindow):
         
         self.repAllAct = QPushButton("replace all") 
         self.repAllAct.setFixedWidth(100)
-        self.repAllAct.setStyleSheet(stylesheet2(self))
         self.repAllAct.setIcon(QIcon.fromTheme("gtk-find-and-replace"))
         self.repAllAct.setStatusTip("replace all")
         self.repAllAct.clicked.connect(self.replaceAll)
@@ -394,7 +386,6 @@ class myEditor(QMainWindow):
         tbf.addAction(self.indentLessAct)
         tbf.addSeparator()
         self.gotofield = QLineEdit()
-        self.gotofield.setStyleSheet(stylesheet2(self))
         self.gotofield.addAction(QIcon.fromTheme("next"), QLineEdit.LeadingPosition)
         self.gotofield.setClearButtonEnabled(True)
         self.gotofield.setFixedWidth(120)
@@ -405,7 +396,6 @@ class myEditor(QMainWindow):
         
         tbf.addSeparator() 
         self.bookmarks = QComboBox()
-        self.bookmarks.setStyleSheet(stylesheet2(self))
         self.bookmarks.setFixedWidth(280)
         self.bookmarks.setToolTip("go to bookmark")
         self.bookmarks.activated[str].connect(self.gotoBookmark)
@@ -426,9 +416,7 @@ class myEditor(QMainWindow):
         layoutV = QVBoxLayout()
         
         bar=self.menuBar()
-        bar.setStyleSheet(stylesheet2(self))
         self.filemenu=bar.addMenu("File")
-        self.filemenu.setStyleSheet(stylesheet2(self))
         self.separatorAct = self.filemenu.addSeparator()
         self.filemenu.addAction(self.newAct)
         self.filemenu.addAction(self.openAct)
@@ -446,7 +434,6 @@ class myEditor(QMainWindow):
         self.filemenu.addAction(self.exitAct)
         
         editmenu = bar.addMenu("Edit")
-        editmenu.setStyleSheet(stylesheet2(self))
         editmenu.addAction(QAction(QIcon.fromTheme('edit-undo'), "Undo", self, triggered = self.editor.undo, shortcut = "Ctrl+u"))
         editmenu.addAction(QAction(QIcon.fromTheme('edit-redo'), "Redo", self, triggered = self.editor.redo, shortcut = "Shift+Ctrl+u"))
         editmenu.addSeparator()
@@ -616,7 +603,7 @@ class myEditor(QMainWindow):
             cmenu.addAction(QIcon.fromTheme("gtk-find-and-replace"),"replace all occurrences with", self.replaceThis)
             cmenu.addSeparator()
         cmenu.addAction(QIcon.fromTheme("zeal"),"show help with 'zeal'", self.showZeal)
-        cmenu.addAction(QIcon.fromTheme("browser"),"find with 'firefox'", self.findWithFirefox)
+        cmenu.addAction(QIcon.fromTheme("firefox"),"find with 'firefox'", self.findWithFirefox)
         cmenu.addAction(QIcon.fromTheme("gtk-find-"),"find this (F10)", self.findNextWord)
         cmenu.addSeparator()
         cmenu.addAction(self.py2Act)
@@ -645,7 +632,7 @@ class myEditor(QMainWindow):
 #        shellWinMenu.addAction(QAction(QIcon.fromTheme('edit-copy'), "Copy", self, triggered = self.shellWin.copy, shortcut = "Ctrl+c"))
         shellWinMenu.addSeparator()
         shellWinMenu.addAction(QIcon.fromTheme("zeal"),"show help with 'zeal'", self.showZeal_shell)
-        shellWinMenu.addAction(QIcon.fromTheme("browser"),"find with 'firefox'", self.findWithFirefox_shell)
+        shellWinMenu.addAction(QIcon.fromTheme("firefox"),"find with 'firefox'", self.findWithFirefox_shell)
         if "/" in self.shellWin.textCursor().selectedText():
             shellWinMenu.addAction(self.fmanAction)
         shellWinMenu.exec_(self.shellWin.mapToGlobal(point))   
@@ -666,7 +653,7 @@ class myEditor(QMainWindow):
             rtext = tc.selectedText()
             print(rtext)
         else:
-            rtext = self.editor.textCursor().selectedText().replace(".", "::")
+            rtext = self.editor.textCursor().selectedText() ##.replace(".", "::")
         cmd = "zeal " + str(rtext)
         QProcess().startDetached(cmd)
 
