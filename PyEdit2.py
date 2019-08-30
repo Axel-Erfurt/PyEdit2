@@ -522,7 +522,10 @@ class myEditor(QMainWindow):
             QProcess.startDetached("thunar")
 
     def handleTextEdit(self):
-        QProcess.startDetached("/home/brian/myApps/TextEdit/QTextEdit")
+        dir = os.path.dirname(sys.argv[0])
+        filename = "QTextEdit.py"
+        f = os.path.join(dir, filename)
+        QProcess.startDetached(f)
 
     def killPython(self):
         if int(sys.version[0]) < 3:
