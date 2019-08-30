@@ -3,7 +3,7 @@
 from __future__ import print_function
 
 from PyQt5.QtWidgets import (QPlainTextEdit, QWidget, QVBoxLayout, QApplication, QFileDialog, QMessageBox, QLabel, QCompleter, 
-                                                    QHBoxLayout, QTextEdit, QToolBar, QComboBox, QAction, QLineEdit, QDialog, QPushButton, 
+                                                    QHBoxLayout, QTextEdit, QToolBar, QComboBox, QAction, QLineEdit, QDialog, QPushButton, QSizePolicy, 
                                                      QToolButton, QMenu, QMainWindow, QInputDialog, QColorDialog, QStatusBar, QSystemTrayIcon)
 from PyQt5.QtGui import (QIcon, QPainter, QTextFormat, QColor, QTextCursor, QKeySequence, QClipboard, QTextDocument, 
                                         QPixmap, QStandardItemModel, QStandardItem, QCursor)
@@ -171,6 +171,7 @@ class myEditor(QMainWindow):
         self.bookmarkslist = []
         print("self.root is: ", self.root)
         self.appfolder = self.root
+        self.openPath = ""
         self.statusBar().showMessage(self.appfolder)
         self.lineLabel = QLabel("line")
         self.statusBar().addPermanentWidget(self.lineLabel)
@@ -194,7 +195,7 @@ class myEditor(QMainWindow):
         self.completer.setCompletionRole(Qt.EditRole)
         self.editor.setCompleter(self.completer)
 
-        self.editor.setStyleSheet(stylesheet2(self))
+        self.setStyleSheet(stylesheet2(self))
 #        self.editor.setTabStopWidth(20)
         self.editor.cursorPositionChanged.connect(self.cursorPositionChanged)
         self.extra_selections = []
@@ -202,9 +203,11 @@ class myEditor(QMainWindow):
         self.fname = ""
         self.filename = ""
         self.mypython = "2"
-        self.mylabel = QTextEdit()
-        self.mylabel.setFixedHeight(90)
-        self.mylabel.setTextInteractionFlags(Qt.TextSelectableByMouse)
+        self.shellWin = QTextEdit()
+        self.shellWin.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.shellWin.setFixedHeight(90)
+#        self.shellWin.setReadOnly(True)
+#        self.shellWin.setTextInteractionFlags(Qt.TextSelectableByMouse)
         # Line Numbers ...
         self.numbers = NumberBar(self.editor)
         self.createActions()
@@ -316,12 +319,36 @@ class myEditor(QMainWindow):
         ### about buttons
         tb.addSeparator()
         tb.addAction(QIcon.fromTheme(self.root + "/icons/info2"),"&About PyEdit", self.about)
+        tb.addAction(QAction(QIcon.fromTheme("process-stop"), "kill python", self, triggered=self.killPython))
+        ### show / hide shellWin
         tb.addSeparator()
+        self.shToggleAction = QAction("show/ hide shell window", self,
+                statusTip="show/ hide shell window", triggered=self.handleShellWinToggle)
+        self.shToggleAction.setIcon(QIcon.fromTheme("terminal"))
+        self.shToggleAction.setCheckable(True)
+        tb.addAction(self.shToggleAction) 
+
+        ### thunar
+        tb.addSeparator()
+        self.fmanAction = QAction("open Filemanager", self,
+                statusTip="open Filemanager", triggered=self.handleFM)
+        self.fmanAction.setIcon(QIcon.fromTheme("file-manager"))
+        tb.addAction(self.fmanAction)   
+        ### TextEdit
+        self.texteditAction = QAction("open QTextEdit", self,
+                statusTip="open QTextEdit", triggered=self.handleTextEdit)
+        self.texteditAction.setIcon(QIcon.fromTheme("text-editor"))
+        tb.addAction(self.texteditAction)
         ### exit button
+        tb.addSeparator()
+        ## addStretch
+        empty = QWidget();
+        empty.setSizePolicy(QSizePolicy.Expanding,QSizePolicy.Preferred);
+        tb.addWidget(empty)
         self.exitAct = QAction("exit", self, shortcut=QKeySequence.Quit,
                 statusTip="Exit", triggered=self.handleQuit)
         self.exitAct.setIcon(QIcon.fromTheme(self.root + "/icons/quit"))
-        tb.addAction(self.exitAct)     
+        tb.addAction(self.exitAct)       
         ### end toolbar
         self.indentAct = QAction(QIcon.fromTheme(self.root + "/icons/format-indent-more"), "indent more", self, triggered = self.indentLine, shortcut = "F8")
         self.indentLessAct = QAction(QIcon.fromTheme(self.root + "/icons/format-indent-less"), "indent less", self, triggered = self.indentLessLine, shortcut = "F9")
@@ -445,9 +472,10 @@ class myEditor(QMainWindow):
         editmenu.addAction(self.indentLessAct)
 
         layoutV.addLayout(layoutH)
-        self.mylabel.setMinimumHeight(28)
-        self.mylabel.setStyleSheet(stylesheet2(self))
-        layoutV.addWidget(self.mylabel)
+        self.shellWin.setMinimumHeight(28)
+        self.shellWin.setStyleSheet(stylesheet2(self))
+        self.shellWin.customContextMenuRequested.connect(self.shellWincontextMenuRequested)
+        layoutV.addWidget(self.shellWin)
         ### main window
         mq = QWidget(self)
         mq.setLayout(layoutV)
@@ -470,8 +498,8 @@ class myEditor(QMainWindow):
         self.process = QProcess(self)
         self.process.setProcessChannelMode(QProcess.MergedChannels)
         self.process.readyRead.connect(self.dataReady)
-        self.process.started.connect(lambda: self.mylabel.append("starting shell"))
-        self.process.finished.connect(lambda: self.mylabel.append("shell ended"))
+        self.process.started.connect(lambda: self.shellWin.append("starting shell"))
+        self.process.finished.connect(lambda: self.shellWin.append("shell ended"))
 
         self.editor.setContextMenuPolicy(Qt.CustomContextMenu)
         self.editor.customContextMenuRequested.connect(self.contextMenuRequested)
@@ -479,6 +507,28 @@ class myEditor(QMainWindow):
         self.loadTemplates()   
         self.readSettings()
         self.statusBar().showMessage("self.root is: " + self.root, 0)
+
+    def handleShellWinToggle(self):
+        if self.shellWin.isVisible():
+            self.shellWin.setVisible(False)
+        else:
+            self.shellWin.setVisible(True)
+
+
+    def handleFM(self):
+        if "/" in self.shellWin.textCursor().selectedText():
+            QProcess.startDetached("thunar", [self.shellWin.textCursor().selectedText()])
+        else:
+            QProcess.startDetached("thunar")
+
+    def handleTextEdit(self):
+        QProcess.startDetached("/home/brian/myApps/TextEdit/QTextEdit")
+
+    def killPython(self):
+        if int(sys.version[0]) < 3:
+            os.system("killall python")
+        else:
+            os.system("killall python3")
 
     def keyPressEvent(self, event):
         if  self.editor.hasFocus():
@@ -553,7 +603,7 @@ class myEditor(QMainWindow):
                 self.editor.textCursor().insertText(colorname)
 
     ### QPlainTextEdit contextMenu
-    def contextMenuRequested(self,point):
+    def contextMenuRequested(self, point):
         cmenu = QMenu()
         cmenu = self.editor.createStandardContextMenu()
         cmenu.addSeparator()
@@ -584,6 +634,18 @@ class myEditor(QMainWindow):
         cmenu.addSeparator()
         cmenu.addAction(QIcon.fromTheme("preferences-color"),"change Color", self.changeColor)
         cmenu.exec_(self.editor.mapToGlobal(point))    
+
+    ### shellWin contextMenu
+    def shellWincontextMenuRequested(self, point):
+        shellWinMenu = QMenu()
+        shellWinMenu = self.shellWin.createStandardContextMenu()
+#        shellWinMenu.addAction(QAction(QIcon.fromTheme('edit-copy'), "Copy", self, triggered = self.shellWin.copy, shortcut = "Ctrl+c"))
+        shellWinMenu.addSeparator()
+        shellWinMenu.addAction(QIcon.fromTheme("zeal"),"show help with 'zeal'", self.showZeal_shell)
+        shellWinMenu.addAction(QIcon.fromTheme("browser"),"find with 'firefox'", self.findWithFirefox_shell)
+        if "/" in self.shellWin.textCursor().selectedText():
+            shellWinMenu.addAction(self.fmanAction)
+        shellWinMenu.exec_(self.shellWin.mapToGlobal(point))   
         
     def replaceThis(self):
         rtext = self.editor.textCursor().selectedText()
@@ -600,10 +662,8 @@ class myEditor(QMainWindow):
             tc.select(QTextCursor.WordUnderCursor)
             rtext = tc.selectedText()
             print(rtext)
-#            self.editor.moveCursor(QTextCursor.StartOfWord, QTextCursor.MoveAnchor)
-#            self.editor.moveCursor(QTextCursor.EndOfWord, QTextCursor.KeepAnchor)
         else:
-            rtext = self.editor.textCursor().selectedText()
+            rtext = self.editor.textCursor().selectedText().replace(".", "::")
         cmd = "zeal " + str(rtext)
         QProcess().startDetached(cmd)
 
@@ -613,9 +673,21 @@ class myEditor(QMainWindow):
             tc.select(QTextCursor.WordUnderCursor)
             rtext = tc.selectedText()
         else:
-            rtext = self.editor.textCursor().selectedText()
+            rtext = "python%20" + self.editor.textCursor().selectedText().replace(" ", "%20")
         url = "https://www.google.com/search?q=" +  rtext
         QProcess.startDetached("firefox " + url)
+
+    def showZeal_shell(self):
+        if not self.shellWin.textCursor().selectedText() == "":
+            rtext = self.shellWin.textCursor().selectedText()
+            cmd = "zeal " + str(rtext)
+            QProcess().startDetached(cmd)
+
+    def findWithFirefox_shell(self):
+        if not self.shellWin.textCursor().selectedText() == "":
+            rtext = "python%20" + self.shellWin.textCursor().selectedText().replace(" ", "%20")
+            url = "https://www.google.com/search?q=" +  rtext.replace(" ", "%20")
+            QProcess.startDetached("firefox " + url)
    
     def findNextWord(self):
         if self.editor.textCursor().selectedText() == "":
@@ -658,10 +730,10 @@ class myEditor(QMainWindow):
         except TypeError:
             self.msgbox("Error", str(self.process.readAll(), encoding = 'utf8'))
             out = str(self.process.readAll()).rstrip()
-        self.mylabel.moveCursor(self.cursor.Start)
-        self.mylabel.append(out)    
-        if self.mylabel.find("line", QTextDocument.FindWholeWords):
-            t = self.mylabel.toPlainText().partition("line")[2].partition("\n")[0].lstrip()
+            self.shellWin.moveCursor(self.cursor.Start) ### changed
+        self.shellWin.append(out)    
+        if self.shellWin.find("line", QTextDocument.FindWholeWords):
+            t = self.shellWin.toPlainText().partition("line")[2].partition("\n")[0].lstrip()
             if t.find(",", 0):
                 tr = t.partition(",")[0]
             else:
@@ -669,8 +741,8 @@ class myEditor(QMainWindow):
             self.gotoErrorLine(tr)
         else:
             return
-        self.mylabel.moveCursor(self.cursor.End)
-        self.mylabel.ensureCursorVisible()
+        self.shellWin.moveCursor(self.cursor.End)
+        self.shellWin.ensureCursorVisible()
         
     def createActions(self):
         for i in range(self.MaxRecentFiles):
@@ -785,7 +857,7 @@ class myEditor(QMainWindow):
         self.statusBar().showMessage("bookmarks changed")
                 
     def clearLabel(self):
-        self.mylabel.setText("")
+        self.shellWin.setText("")
               
             
     def openRecentFile(self):
@@ -815,6 +887,7 @@ class myEditor(QMainWindow):
        ### open File
     def openFileOnStart(self, path=None):
         if path:
+            self.openPath = QFileInfo(path).path() ### store path for next time
             inFile = QFile(path)
             if inFile.open(QFile.ReadWrite | QFile.Text):
                 text = inFile.readAll()
@@ -840,6 +913,7 @@ class myEditor(QMainWindow):
                 outstr << self.editor.toPlainText()
                 QApplication.restoreOverrideCursor()  
                 self.statusBar().showMessage("File '" + path + "' loaded succesfully & bookmarks added & backup created ('" + self.filename + "_backup" + "')")
+#                self.settings.setValue('recentFileList', [])
 
              ### add all words to completer ###
 #                mystr = self.editor.toPlainText()
@@ -849,9 +923,11 @@ class myEditor(QMainWindow):
         
         ### open File
     def openFile(self, path=None):
+        if self.openPath == "":
+            self.openPath = self.dirpath
         if self.maybeSave():
             if not path:
-                path, _ = QFileDialog.getOpenFileName(self, "Open File", self.dirpath,
+                path, _ = QFileDialog.getOpenFileName(self, "Open File", self.openPath,
                     "Python Files (*.py);; all Files (*)")
 
             if path:
@@ -977,18 +1053,18 @@ class myEditor(QMainWindow):
             self.statusBar().showMessage("no code to run")
             
     def readData(self, cmd):
-        self.mylabel.clear()
+        self.shellWin.clear()
         dname = QFileInfo(self.filename).filePath().replace(QFileInfo(self.filename).fileName(), "")
         self.statusBar().showMessage(str(dname))
         QProcess().execute("cd '" + dname + "'")
         self.process.start(cmd,['-u', dname + self.strippedName(self.filename)])
         
-    def killPython(self):
-        if (self.mypython == "3"):
-            cmd = "killall python3"
-        else:
-            cmd = "killall python"
-        self.readData(cmd)
+#    def killPython(self):
+#        if (self.mypython == "3"):
+#            cmd = "killall python3"
+#        else:
+#            cmd = "killall python"
+#        self.readData(cmd)
         
     def commentBlock(self):
         self.editor.copy()
@@ -1265,20 +1341,22 @@ class myEditor(QMainWindow):
     def updateRecentFileActions(self):
         mytext = ""
         files = self.settings.value('recentFileList', [])
-
-        numRecentFiles = min(len(files), self.MaxRecentFiles)
-
-        for i in range(numRecentFiles):
-            text = "&%d %s" % (i + 1, self.strippedName(files[i]))
-            self.recentFileActs[i].setText(text)
-            self.recentFileActs[i].setData(files[i])
-            self.recentFileActs[i].setVisible(True)
-            self.recentFileActs[i].setIcon(QIcon.fromTheme("gnome-mime-text-x-python"))
-
-        for j in range(numRecentFiles, self.MaxRecentFiles):
-            self.recentFileActs[j].setVisible(False)
-
-        self.separatorAct.setVisible((numRecentFiles > 0))
+        if not len(files) == 0:
+            numRecentFiles = len(files)
+    
+            for i in range(numRecentFiles):
+                text = "&%d %s" % (i + 1, self.strippedName(files[i]))
+                self.recentFileActs[i].setText(text)
+                self.recentFileActs[i].setData(files[i])
+                self.recentFileActs[i].setVisible(True)
+                self.recentFileActs[i].setIcon(QIcon.fromTheme("gnome-mime-text-x-python"))
+    
+            for j in range(numRecentFiles, self.MaxRecentFiles):
+                self.recentFileActs[j].setVisible(False)
+    
+            self.separatorAct.setVisible((numRecentFiles > 0))
+        else:
+            return
         
     def strippedName(self, fullFileName):
         return QFileInfo(fullFileName).fileName()
@@ -1397,7 +1475,7 @@ def stylesheet2(self):
     return """
 QPlainTextEdit
 {
-font-family: Helvetica;
+font-family: Noto Sans;
 font-size: 13px;
 background: #E2E2E2;
 color: #202020;
@@ -1405,8 +1483,8 @@ border: 1px solid #1EAE3D;
 }
 QTextEdit
 {
-background: #292929;
-color: #1EAE3D;
+background: #2e3436;
+color: #729fcf;
 font-family: Monospace;
 font-size: 8pt;
 padding-left: 6px;
@@ -1414,44 +1492,57 @@ border: 1px solid #1EAE3D;
 }
 QStatusBar
 {
-font-family: Helvetica;
+font-family: Noto Sans;
 color: #204a87;
 font-size: 8pt;
 }
 QLabel
 {
-font-family: Helvetica;
+font-family: Noto Sans;
 color: #204a87;
 font-size: 8pt;
 }
 QLineEdit
 {
+background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
+    stop: 0 #E1E1E1, stop: 0.4 #e5e5e5,
+    stop: 0.5 #e9e9e9, stop: 1.0 #d2d2d2);
 font-family: Helvetica;
 font-size: 8pt;
 }
 QPushButton
 {
-font-family: Helvetica;
+background: #D8D8D8;
+font-family: Noto Sans;
 font-size: 8pt;
 }
 QComboBox
 {
-font-family: Helvetica;
+background: #D8D8D8;
+font-family: Noto Sans;
 font-size: 8pt;
 }
 QMenuBar
 {
-font-family: Helvetica;
+font-family: Noto Sans;
 font-size: 8pt;
+border: 0px;
 }
 QMenu
 {
-font-family: Helvetica;
+font-family: Noto Sans;
 font-size: 8pt;
 }
 QToolBar
 {
+border: 0px;
 background: transparent;
+}
+QMainWindow
+{
+background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
+    stop: 0 #E1E1E1, stop: 0.4 #DDDDDD,
+    stop: 0.5 #D8D8D8, stop: 1.0 #D3D3D3);
 }
     """       
 
@@ -1468,8 +1559,8 @@ if __name__ == '__main__':
     win = myEditor()
     win.setWindowTitle("PyEdit" + "[*]")
     win.show()
-    if len(QCoreApplication.arguments()) > 1:
-        print(QCoreApplication.arguments()[1])
-        win.openFileOnStart(QCoreApplication.arguments()[1])
+    if len(sys.argv) > 1:
+        print(sys.argv[1])
+        win.openFileOnStart(sys.argv[1])
 
     sys.exit(app.exec_())
