@@ -91,7 +91,7 @@ class TextEdit(QPlainTextEdit):
         hasModifier = (e.modifiers() != Qt.NoModifier) and not ctrlOrShift
         completionPrefix = self.textUnderCursor()
 
-        if not isShortcut and (hasModifier or len(e.text()) == 0 or len(completionPrefix) < 3 or e.text()[-1] in eow):
+        if not isShortcut and (hasModifier or len(e.text()) == 0 or len(completionPrefix) < 2 or e.text()[-1] in eow):
             self._completer.popup().hide()
             return
 
@@ -181,7 +181,7 @@ class myEditor(QMainWindow):
         self.settings = QSettings("PyEdit", "PyEdit")
         self.dirpath = QDir.homePath() + "/Dokumente/python_files/"
         self.setAttribute(Qt.WA_DeleteOnClose)
-        self.setWindowIcon(QIcon.fromTheme("applications-python"))
+        self.setWindowIcon(QIcon.fromTheme("python3"))
 
 
         # Editor Widget ...
@@ -293,7 +293,7 @@ class myEditor(QMainWindow):
         tb.addSeparator()   
         self.py2Act = QAction("run in Python 2 (F4)", self, shortcut="F4",
                 statusTip="run in Python 2 (F4)", triggered=self.runPy2)
-        self.py2Act.setIcon(QIcon.fromTheme("applications-python"))
+        self.py2Act.setIcon(QIcon.fromTheme("python"))
         tb.addAction(self.py2Act)                               
         self.py3Act = QAction("run in Python 3.6 (F6)", self, shortcut="F6",
                 statusTip="run in Python 3 (F5)", triggered=self.runPy3)
@@ -331,8 +331,8 @@ class myEditor(QMainWindow):
         self.fmanAction.setIcon(QIcon.fromTheme("file-manager"))
         tb.addAction(self.fmanAction)   
         ### TextEdit
-        self.texteditAction = QAction("open QTextEdit", self,
-                statusTip="open QTextEdit", triggered=self.handleTextEdit)
+        self.texteditAction = QAction("open selected Text in QTextEdit", self,
+                statusTip="open selected Text in QTextEdit", triggered=self.handleTextEdit)
         self.texteditAction.setIcon(QIcon.fromTheme("text-editor"))
         tb.addAction(self.texteditAction)
         ### exit button
@@ -511,8 +511,11 @@ class myEditor(QMainWindow):
     def handleTextEdit(self):
         dir = os.path.dirname(sys.argv[0])
         filename = "QTextEdit.py"
+        text = self.editor.textCursor().selectedText()
         f = os.path.join(dir, filename)
-        QProcess.startDetached(f)
+        cmd = f + " '" + text + "'"
+        print(cmd)
+        QProcess.startDetached(f, [text])
 
     def killPython(self):
         if int(sys.version[0]) < 3:
@@ -605,6 +608,7 @@ class myEditor(QMainWindow):
         cmenu.addAction(QIcon.fromTheme("zeal"),"show help with 'zeal'", self.showZeal)
         cmenu.addAction(QIcon.fromTheme("firefox"),"find with 'firefox'", self.findWithFirefox)
         cmenu.addAction(QIcon.fromTheme("gtk-find-"),"find this (F10)", self.findNextWord)
+        cmenu.addAction(self.texteditAction)
         cmenu.addSeparator()
         cmenu.addAction(self.py2Act)
         cmenu.addAction(self.py3Act)
@@ -1329,30 +1333,37 @@ class myEditor(QMainWindow):
                 widget.updateRecentFileActions()
 
     def updateRecentFileActions(self):
-        mytext = ""
-        files = self.settings.value('recentFileList', [])
-        if not len(files) == 0:
-            numRecentFiles = len(files)
-    
-            for i in range(numRecentFiles):
-                text = "&%d %s" % (i + 1, self.strippedName(files[i]))
-                self.recentFileActs[i].setText(text)
-                self.recentFileActs[i].setData(files[i])
-                self.recentFileActs[i].setVisible(True)
-                self.recentFileActs[i].setIcon(QIcon.fromTheme("gnome-mime-text-x-python"))
-    
-            for j in range(numRecentFiles, self.MaxRecentFiles):
-                self.recentFileActs[j].setVisible(False)
-    
-            self.separatorAct.setVisible((numRecentFiles > 0))
-        else:
-            return
+        if self.settings.contains('recentFileList'):
+            mytext = ""
+            files = self.settings.value('recentFileList', [])
+            if not len(files) == 0:
+                numRecentFiles = len(files)
+        
+                for i in range(numRecentFiles):
+                    text = "&%d %s" % (i + 1, self.strippedName(files[i]))
+                    self.recentFileActs[i].setText(text)
+                    self.recentFileActs[i].setData(files[i])
+                    self.recentFileActs[i].setVisible(True)
+                    self.recentFileActs[i].setIcon(QIcon.fromTheme("gnome-mime-text-x-python"))
+        
+                for j in range(numRecentFiles, self.MaxRecentFiles):
+                    self.recentFileActs[j].setVisible(False)
+        
+                self.separatorAct.setVisible((numRecentFiles > 0))
+            else:
+                for i in range(len(self.recentFileActs)):
+                    self.recentFileActs[i].remove()
         
     def strippedName(self, fullFileName):
         return QFileInfo(fullFileName).fileName()
         
     def clearRecentFiles(self):
-        self.settings.setValue('recentFileList', [])
+        self.settings.remove('recentFileList')
+        self.recentFileActs = []
+        self.settings.sync()
+        for widget in QApplication.topLevelWidgets():
+            if isinstance(widget, myEditor):
+                widget.updateRecentFileActions()
         self.updateRecentFileActions()
 
     def readSettings(self):
