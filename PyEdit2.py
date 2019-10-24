@@ -1,5 +1,9 @@
 #!/usr/bin/python3
 # -- coding: utf-8 --
+
+# syntax_py  https://wiki.python.org/moin/PyQt/Python%20syntax%20highlighting
+# "© 2017 Axel Schneider <axel99092@gmail.com> https://goodoldsongs.jimdo.com/"
+
 from __future__ import print_function
 
 from PyQt5.QtWidgets import (QPlainTextEdit, QWidget, QVBoxLayout, QApplication, QFileDialog, QMessageBox, QLabel, QCompleter, 
@@ -165,7 +169,7 @@ class NumberBar(QWidget):
 class myEditor(QMainWindow):
     def __init__(self, parent = None):
         super(myEditor, self).__init__(parent)
-
+        self.words = []
         self.root = QFileInfo.path(QFileInfo(QCoreApplication.arguments()[0]))
         self.wordList = []
         self.bookmarkslist = []
@@ -191,8 +195,9 @@ class myEditor(QMainWindow):
         self.completer.setModel(self.modelFromFile(self.root + '/resources/wordlist.txt'))
         self.completer.setModelSorting(QCompleter.CaseInsensitivelySortedModel)
         self.completer.setCaseSensitivity(Qt.CaseInsensitive)
+        self.completer.setFilterMode(Qt.MatchContains)
         self.completer.setWrapAround(False)
-        self.completer.setCompletionRole(Qt.EditRole)
+        self.completer.setCompletionRole(Qt.DisplayRole)
         self.editor.setCompleter(self.completer)
 
         if int(sys.version[0]) > 2:
@@ -300,6 +305,13 @@ class myEditor(QMainWindow):
         self.py3Act.setIcon(QIcon.fromTheme(self.root + "/icons/python3"))
         tb.addAction(self.py3Act)
         tb.addSeparator()
+
+        self.termAct = QAction("run in Terminal",
+                statusTip="run in Terminal", triggered=self.runInTerminal)
+        self.termAct.setIcon(QIcon.fromTheme("x-terminal-emulator"))
+        tb.addAction(self.termAct)
+        tb.addSeparator()
+
         tb.addAction(QIcon.fromTheme("edit-clear"),"clear Output Label", self.clearLabel)
         tb.addSeparator()
         ### print preview
@@ -494,6 +506,30 @@ class myEditor(QMainWindow):
         self.loadTemplates()   
         self.readSettings()
         self.statusBar().showMessage("self.root is: " + self.root, 0)
+
+    def runInTerminal(self):
+        print("running in terminal")
+        if self.editor.toPlainText() == "":
+            self.statusBar().showMessage("no Code!")
+            return
+        if not self.editor.toPlainText() == self.mainText:
+            if self.filename:
+#                self.mypython = "3"
+                self.statusBar().showMessage("running " + self.filename + " in Lua")
+                self.fileSave()
+                self.shellWin.clear()
+                dname = QFileInfo(self.filename).filePath().replace(QFileInfo(self.filename).fileName(), "")
+                cmd = str('xfce4-terminal -e "python3 ' + dname + self.strippedName(self.filename) + '"')
+                self.statusBar().showMessage(str(dname))
+                QProcess().execute("cd '" + dname + "'")
+                print(cmd)
+                self.process.start(cmd)
+            else:
+                self.filename = "/tmp/tmp.py"
+                self.fileSave()
+                self.runInTerminal()
+        else:
+            self.statusBar().showMessage("no code to run")
 
     def handleShellWinToggle(self):
         if self.shellWin.isVisible():
@@ -908,12 +944,26 @@ class myEditor(QMainWindow):
                 QApplication.restoreOverrideCursor()  
                 self.statusBar().showMessage("File '" + path + "' loaded succesfully & bookmarks added & backup created ('" + self.filename + "_backup" + "')")
 #                self.settings.setValue('recentFileList', [])
-
+#                self.addToWordlist(path)
              ### add all words to completer ###
 #                mystr = self.editor.toPlainText()
 #                self.wordList =mystr.split()
 #                print(mystr)
-#                self.completer.setModel(self.modelFromFile(self.root + '/resources/wordlist.txt'))
+
+    def addToWordlist(self, file):
+        wl = []
+        with open(file,'r') as f:
+            for line in f:
+                for word in line.split(" "):
+                    if len(word) > 1:
+                        if not "." in word:
+                            self.words.append(word.replace('\n', ''))
+                        else:
+                            self.words.append(word.replace('\n', '').partition(".")[0])
+                            self.words.append(word.replace('\n', '').partition(".")[2])
+            self.completer.model().setStringList(self.words)
+#            self.completer.setModel(self.modelFromFile(self.root + '/resources/wordlist.txt'))
+#            print(self.completer.model().stringList())
         
         ### open File
     def openFile(self, path=None):
@@ -1454,7 +1504,7 @@ class myEditor(QMainWindow):
 
         QApplication.setOverrideCursor(QCursor(Qt.WaitCursor))
 
-        self.words = []
+#        self.words = self.words ###[]
         while not f.atEnd():
             line = f.readLine().trimmed()
             if line.length() != 0:
@@ -1464,11 +1514,7 @@ class myEditor(QMainWindow):
                     line = str(line)
 
                 self.words.append(line)
-#                print("\n".join(self.wordList))
-#                self.words.append("\n".join(self.wordList))
-
         QApplication.restoreOverrideCursor()
-
         return QStringListModel(self.words, self.completer)
                 
   
