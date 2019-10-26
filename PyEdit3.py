@@ -26,6 +26,45 @@ eof = "\n"
 iconsize = QSize(16, 16)
 #####################################################################
 
+class myLexer(QsciLexerPython):
+    def keywords(self, index):
+        keywords = QsciLexerPython.keywords(self, index) or ''
+        # primary keywords
+        if index == 1:
+            return 'self ' + 'True ' + 'False ' + keywords
+        # secondary keywords
+        if index == 2:
+            return keywords
+        # doc comment keywords
+        if index == 3:
+            return keywords
+        # global classes
+        if index == 4:
+            return keywords
+        if index == 5:
+            return keywords      
+        if index == 6:
+            return keywords
+        if index == 7:
+            return keywords
+        if index == 8:
+            return keywords
+        if index == 9:
+            return keywords
+        if index == 10:
+            return keyword
+        if index == 11:
+            return keywords
+        if index == 12:
+            return keywords
+        if index == 13:
+            return keywords
+        if index == 14:
+            return keywords
+        if index == 15:
+            return keywords
+        #return keywords
+        
 class QSC(QsciScintilla):
     ARROW_MARKER_NUM = 8
 
@@ -89,7 +128,7 @@ class QSC(QsciScintilla):
         self.setEdgeColor(edge_color)
 
         # Set Python lexer
-        lexer = QsciLexerPython()
+        lexer = myLexer()
         lexer.setDefaultFont(font)
         lexer.setDefaultPaper(QColor("#e2e2e2"))
         lexer.setColor(QColor('#8f5902'), QsciLexerPython.DoubleQuotedString)
@@ -97,6 +136,11 @@ class QSC(QsciScintilla):
         lexer.setColor(QColor('#204a87'), QsciLexerPython.Keyword)
         lexer.setColor(QColor('#a40000'), QsciLexerPython.Number)
         lexer.setColor(QColor('#a40000'), QsciLexerPython.ClassName)
+        lexer.setColor(QColor('#cc0000'), QsciLexerPython.FunctionMethodName)
+        lexer.setColor(QColor('#a40000'), QsciLexerPython.Operator)
+        lexer.setColor(QColor('#1c1c1c'), QsciLexerPython.Identifier)
+        lexer.setColor(QColor('#888a85'), QsciLexerPython.CommentBlock)
+        lexer.setIndentationWarning (QsciLexerPython.Inconsistent)
 
         lexer.setFoldComments(True)
         lexer.setFoldCompact(True)
@@ -108,7 +152,7 @@ class QSC(QsciScintilla):
         pyqt_path = '/home/brian/.local/lib/python3.6/site-packages/PyQt5/Qt/qsci/api/python/PyQt5.api'
         py3_path = '/home/brian/.local/lib/python3.6/site-packages/PyQt5/Qt/qsci/api/python/Python-3.6.api'
         my_path = "/home/brian/myApps/PyEdit/resources/wordlist.txt"
-#        self.api.load(py3_path)
+        self.api.load(py3_path)
 
         autocomplete_list = open(my_path).read().splitlines()
         if autocomplete_list is not None:
@@ -557,10 +601,10 @@ class myEditor(QMainWindow):
         self.setModified(False)
         
     def editorChanged(self):
-        t = self.parent.strippedName(self.parent.filename)
-        print("self.parent.filename =", t)
-        self.parent.setWindowTitle(t + "[*]")
-        return t
+        if not self.filename == "":
+            t = self.strippedName(self.filename)
+            print("self.filename =", t)
+            self.setWindowTitle("%s%s" % (t, "*"))
 
     def runInTerminal(self):
         print("running in terminal")
