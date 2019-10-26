@@ -10,3 +10,7 @@ __Requirements:__
 - PyQt5
 
 ![alt text](https://github.com/Axel-Erfurt/PyEdit2/blob/master/screenshot2.png)
+
+# PyEdit3
+
+new Version using QScintilla
