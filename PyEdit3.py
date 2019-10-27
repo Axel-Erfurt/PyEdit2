@@ -5,7 +5,7 @@
 # "© QScintilla
 
 from __future__ import print_function
-
+import PyQt5
 from PyQt5.QtWidgets import (QPlainTextEdit, QWidget, QVBoxLayout, QApplication, QFileDialog, QMessageBox, 
                             QLabel, QCompleter, QHBoxLayout, QTextEdit, QToolBar, QComboBox, QAction, 
                             QLineEdit, QDialog, QPushButton, QSizePolicy, QToolButton, QMenu, 
@@ -25,45 +25,7 @@ tab = chr(9)
 eof = "\n"
 iconsize = QSize(16, 16)
 #####################################################################
-
-class myLexer(QsciLexerPython):
-    def keywords(self, index):
-        keywords = QsciLexerPython.keywords(self, index) or ''
-        # primary keywords
-        if index == 1:
-            return 'self ' + 'True ' + 'False ' + keywords
-        # secondary keywords
-        if index == 2:
-            return keywords
-        # doc comment keywords
-        if index == 3:
-            return keywords
-        # global classes
-        if index == 4:
-            return keywords
-        if index == 5:
-            return keywords      
-        if index == 6:
-            return keywords
-        if index == 7:
-            return keywords
-        if index == 8:
-            return keywords
-        if index == 9:
-            return keywords
-        if index == 10:
-            return keyword
-        if index == 11:
-            return keywords
-        if index == 12:
-            return keywords
-        if index == 13:
-            return keywords
-        if index == 14:
-            return keywords
-        if index == 15:
-            return keywords
-        #return keywords
+        
         
 class QSC(QsciScintilla):
     ARROW_MARKER_NUM = 8
@@ -128,7 +90,7 @@ class QSC(QsciScintilla):
         self.setEdgeColor(edge_color)
 
         # Set Python lexer
-        lexer = myLexer()
+        lexer = QsciLexerPython(self)
         lexer.setDefaultFont(font)
         lexer.setDefaultPaper(QColor("#e2e2e2"))
         lexer.setColor(QColor('#8f5902'), QsciLexerPython.DoubleQuotedString)
@@ -148,17 +110,20 @@ class QSC(QsciScintilla):
         self.setLexer(lexer)
 
         ## setup autocompletion
+        path = os.path.dirname(PyQt5.__file__)
         self.api = QsciAPIs(lexer)
-        pyqt_path = '/home/brian/.local/lib/python3.6/site-packages/PyQt5/Qt/qsci/api/python/PyQt5.api'
-        py3_path = '/home/brian/.local/lib/python3.6/site-packages/PyQt5/Qt/qsci/api/python/Python-3.6.api'
-        my_path = "/home/brian/myApps/PyEdit/resources/wordlist.txt"
-        self.api.load(py3_path)
-
-        autocomplete_list = open(my_path).read().splitlines()
-        if autocomplete_list is not None:
-            for line in autocomplete_list:
-                self.api.add(line)
-
+        pyqt_path = os.path.join(path, 'Qt/qsci/api/python/PyQt5.api')
+        py3_path = os.path.join(path, 'Qt/qsci/api/python/Python-3.6.api')
+        if self.api.load(py3_path):
+            print("python3 api loaded")
+        else:
+            print("python3 api not loaded!")
+            
+        if self.api.load(pyqt_path):
+            print("Qt5 api loaded")
+        else:
+            print("Qt5 api not loaded!")
+#
         for key in keyword.kwlist + dir(__builtins__):
             self.api.add(key)
         
@@ -183,9 +148,14 @@ class QSC(QsciScintilla):
         
         self.selectionChanged.connect(self.getSelectionFromEditor)
 
-        self.setCaretWidth(1)
+        self.setCaretWidth(2)
         self.setFolding(QsciScintilla.FoldStyle(QsciScintilla.BoxedTreeFoldStyle), margin = 2) 
+        self.setCaretForegroundColor(QColor("#cc0000"))
         ### BoxedFoldStyle, CircledTreeFoldStyle, BoxedTreeFoldStyle
+        
+        ### callTips
+        self.setCallTipsVisible(0)
+        self.setCallTipsPosition(QsciScintilla.CallTipsBelowText)
 
         self.setMinimumSize(500, 400)
 
@@ -603,7 +573,6 @@ class myEditor(QMainWindow):
     def editorChanged(self):
         if not self.filename == "":
             t = self.strippedName(self.filename)
-            print("self.filename =", t)
             self.setWindowTitle("%s%s" % (t, "*"))
 
     def runInTerminal(self):
