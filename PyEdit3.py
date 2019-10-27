@@ -20,6 +20,7 @@ import os
 from PyQt5.Qsci import QsciScintilla, QsciLexerPython, QsciAPIs, QsciPrinter, QsciScintillaBase
 import keyword
 import pkgutil
+import Manual
 
 tab = chr(9)
 eof = "\n"
@@ -50,10 +51,10 @@ class QSC(QsciScintilla):
         # Margin 0 is used for line numbers
         fontmetrics = QFontMetrics(font)
         self.setMarginsFont(font)
-        self.setMarginWidth(0, fontmetrics.width("00000") + 6)
+        self.setMarginWidth(0, fontmetrics.width("0000"))
         self.setMarginLineNumbers(0, True)
-        self.setMarginsBackgroundColor(QColor("#888a85"))
-        self.setMarginsForegroundColor(QColor("#f3f3f3"))
+        self.setMarginsBackgroundColor(QColor("#babdb6"))
+        self.setMarginsForegroundColor(QColor("#204a87"))
 
         self.setFoldMarginColors(QColor("#e2e2e2"), QColor("#d2d2d2"))
 
@@ -72,7 +73,7 @@ class QSC(QsciScintilla):
 
         # Current line visible with special background color
         self.setCaretLineVisible(True)
-        self.setCaretLineBackgroundColor(QColor("#babdb6"))
+        self.setCaretLineBackgroundColor(QColor("#d3d7cf"))
 
         self.setIndentationsUseTabs(False)
         self.setTabWidth(4)
@@ -156,6 +157,7 @@ class QSC(QsciScintilla):
         ### callTips
         self.setCallTipsVisible(0)
         self.setCallTipsPosition(QsciScintilla.CallTipsBelowText)
+        self.setCallTipsStyle(QsciScintilla.CallTipsNoAutoCompletionContext)
 
         self.setMinimumSize(500, 400)
 
@@ -284,7 +286,7 @@ class myEditor(QMainWindow):
         self.setWindowIcon(QIcon.fromTheme("python3"))
 
 
-        # Editor Widget ...
+        ### Editor Widget ...
         self.editor = QSC()
         self.editor.parent = self
         self.editor.textChanged.connect(self.editorChanged)
@@ -300,7 +302,7 @@ class myEditor(QMainWindow):
         self.shellWin.setFixedHeight(90)
 
         self.createActions()
-        # Layout...
+        ### Layout...
         layoutH = QHBoxLayout()
         layoutH.setSpacing(1.5)
         layoutH.addWidget(self.editor)
@@ -318,6 +320,9 @@ class myEditor(QMainWindow):
         tb.setAllowedAreas(Qt.AllToolBarAreas)
         tb.setFloatable(False)
        
+        ### Manual
+        self.manualAct = QAction("Manual", self, triggered = self.manual, shortcut = "F1")
+        self.addAction(self.manualAct)
         ### file buttons
         self.newAct = QAction("&New", self, shortcut=QKeySequence.New,
                 statusTip="new file", triggered=self.newFile)
@@ -372,7 +377,7 @@ class myEditor(QMainWindow):
                 statusTip="run in Python 2 (F4)", triggered=self.runPy2)
         self.py2Act.setIcon(QIcon.fromTheme("python"))
         tb.addAction(self.py2Act)                               
-        self.py3Act = QAction("run in Python 3.6 (F6)", self, shortcut="F6",
+        self.py3Act = QAction("run in Python 3.6 (F5)", self, shortcut="F5",
                 statusTip="run in Python 3 (F5)", triggered=self.runPy3)
         self.py3Act.setIcon(QIcon.fromTheme(self.root + "/icons/python3"))
         tb.addAction(self.py3Act)
@@ -561,7 +566,7 @@ class myEditor(QMainWindow):
         self.editor.setText(self.mainText)
         self.editor.textChanged.connect(self.setWindowModified)
         
-        # Brackets ExtraSelection ...
+        ### Brackets ExtraSelection ...
         self.left_selected_bracket  = QTextEdit.ExtraSelection()
         self.right_selected_bracket = QTextEdit.ExtraSelection()
         
@@ -581,6 +586,9 @@ class myEditor(QMainWindow):
         self.editor.setCursorPosition(self.editor.text().count('\n'), 0)
         self.setModified(False)
         
+    def manual(self):
+        self.infobox("Manual", Manual.manual_text)
+        
     def editorChanged(self):
         if not self.filename == "":
             t = self.strippedName(self.filename)
@@ -593,7 +601,6 @@ class myEditor(QMainWindow):
             return
         if not self.editor.text() == self.mainText:
             if self.filename:
-#                self.mypython = "3"
                 self.statusBar().showMessage("running " + self.filename + " in Lua")
                 self.fileSave()
                 self.shellWin.clear()
@@ -861,14 +868,12 @@ class myEditor(QMainWindow):
         return linenumber
             
     def gotoLine(self):
-        #f = self.editor.contractedFolds()
-        #print(f)
         ln = int(self.gotofield.text())
-        self.editor.clearFolds()
+        if len(self.editor.contractedFolds()) > 0:
+            self.editor.clearFolds()
         self.editor.setCursorPosition(ln - 1, 1)
         self.editor.setFirstVisibleLine(ln - 2)
         self.editor.setFocus()
-        #self.editor.setContractedFolds(f)
         
     def gotoErrorLine(self, ln):
         t = int(ln)
@@ -879,19 +884,16 @@ class myEditor(QMainWindow):
             return
             
     def gotoMarkerBookmark(self):
-        btext = self.bookmarksMarker.itemText(self.bookmarksMarker.currentIndex())
-        btext = btext.partition("(")[0]
-        self.editor.findFirst(btext, True, True, True, True)
-        ln = self.getLineNumber() ### editor.getCursorPosition()[0]
-        self.editor.setCursorPosition(ln - 1, 0)
-        self.editor.setFirstVisibleLine(ln - 2)
+        ln = self.bookmarksMarker.itemData(self.bookmarksMarker.currentIndex()) ###self.getLineNumber()
+        self.editor.setCursorPosition(ln - 2, 0)
+        self.editor.setFirstVisibleLine(ln - 3)
         self.editor.setFocus()        
         
     def gotoBookmark(self):
         btext = self.bookmarks.itemText(self.bookmarks.currentIndex())
         btext = btext.partition("(")[0]
         self.editor.findFirst(btext, True, True, True, True)
-        ln = self.getLineNumber() ### editor.getCursorPosition()[0]
+        ln = self.getLineNumber()
         self.editor.setCursorPosition(ln - 1, 0)
         self.editor.setFirstVisibleLine(ln - 2)
         self.editor.setFocus()
@@ -913,6 +915,7 @@ class myEditor(QMainWindow):
             
     def clearBookmarks(self):
         self.bookmarks.clear()
+        
     #### find lines with def or class
     def findBookmarks(self):
         self.editor.setFocus()
