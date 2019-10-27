@@ -12,9 +12,9 @@ from PyQt5.QtWidgets import (QPlainTextEdit, QWidget, QVBoxLayout, QApplication,
                             QMainWindow, QInputDialog, QColorDialog, QStatusBar, QSystemTrayIcon)
 from PyQt5.QtGui import (QIcon, QPainter, QTextFormat, QColor, QTextCursor, QKeySequence, 
                         QClipboard, QTextDocument, QPixmap, QStandardItemModel, QStandardItem, 
-                        QCursor, QFontMetrics, QFont)
-from PyQt5.QtCore import (Qt, QVariant, QRect, QDir, QFile, QFileInfo, QTextStream, QSettings, 
-                            QTranslator, QLocale, QProcess, QPoint, QSize, QCoreApplication, QLibraryInfo)
+                        QCursor, QFontMetrics, QFont,  QDesktopServices)
+from PyQt5.QtCore import (Qt, QVariant, QRect, QDir, QFile, QFileInfo, QTextStream, QSettings, QUrl, 
+                            QProcess, QPoint, QSize, QCoreApplication, QLibraryInfo)
 from PyQt5 import QtPrintSupport
 import os
 from PyQt5.Qsci import QsciScintilla, QsciLexerPython, QsciAPIs, QsciPrinter, QsciScintillaBase
@@ -51,7 +51,7 @@ class QSC(QsciScintilla):
         # Margin 0 is used for line numbers
         fontmetrics = QFontMetrics(font)
         self.setMarginsFont(font)
-        self.setMarginWidth(0, fontmetrics.width("0000"))
+        self.setMarginWidth(0, fontmetrics.width("0000") + 4)
         self.setMarginLineNumbers(0, True)
         self.setMarginsBackgroundColor(QColor("#babdb6"))
         self.setMarginsForegroundColor(QColor("#204a87"))
@@ -68,10 +68,10 @@ class QSC(QsciScintilla):
         self.setMarkerForegroundColor(QColor("#eeeeec"),
             self.ARROW_MARKER_NUM)
 
-        # Brace matching
+        ### Brace matching
         self.setBraceMatching(QsciScintilla.SloppyBraceMatch)
 
-        # Current line visible with special background color
+        ### Current line visible with special background color
         self.setCaretLineVisible(True)
         self.setCaretLineBackgroundColor(QColor("#d3d7cf"))
 
@@ -80,7 +80,7 @@ class QSC(QsciScintilla):
         self.setBackspaceUnindents(True)
         self.setAutoIndent(True)
         
-        # Wrap
+        ### Wrap
         self.setWrapMode(QsciScintilla.SC_WRAP_WORD)
         self.setWrapVisualFlags(QsciScintilla.WrapFlagInMargin) ### WrapFlagByText WrapFlagByBorder WrapFlagInMargin
         self.setWrapIndentMode(QsciScintilla.WrapIndentSame)
@@ -90,7 +90,7 @@ class QSC(QsciScintilla):
         edge_color = caret_fg_color = QColor("#ff0000")
         self.setEdgeColor(edge_color)
 
-        # Set Python lexer
+        ### Set Python lexer
         lexer = QsciLexerPython(self)
         lexer.setDefaultFont(font)
         lexer.setDefaultPaper(QColor("#e2e2e2"))
@@ -272,6 +272,7 @@ class myEditor(QMainWindow):
         self.root = QFileInfo.path(QFileInfo(QCoreApplication.arguments()[0]))
         self.bookmarkslist = []
         print("self.root is: ", self.root)
+        self.logo = os.path.join(self.root, "logo_128.png")
         self.appfolder = self.root
         self.openPath = ""
         self.statusBar().showMessage(self.appfolder)
@@ -283,7 +284,7 @@ class myEditor(QMainWindow):
         self.settings = QSettings("PyEdit", "PyEdit")
         self.dirpath = QDir.homePath() + "/Dokumente/python_files/"
         self.setAttribute(Qt.WA_DeleteOnClose)
-        self.setWindowIcon(QIcon.fromTheme("python3"))
+        self.setWindowIcon(QIcon(QPixmap(self.logo)))
 
 
         ### Editor Widget ...
@@ -625,10 +626,10 @@ class myEditor(QMainWindow):
 
 
     def handleFM(self):
-        if "/" in self.shellWin.selectedText():
+        if "/" in self.shellWin.textCursor().selectedText():
             QProcess.startDetached("thunar", [self.shellWin.selectedText()])
         else:
-            QProcess.startDetached("thunar")
+            QProcess.startDetached("thunar", [os.path.dirname(self.filename)])
 
     def handleTextEdit(self):
         dir = os.path.dirname(sys.argv[0])
@@ -777,7 +778,7 @@ class myEditor(QMainWindow):
         else:
             rtext = "python%20" + self.editor.selectedText().replace(" ", "%20")
         url = "https://www.google.com/search?q=" +  rtext
-        QProcess.startDetached("firefox " + url)
+        QDesktopServices.openUrl(QUrl(url))
 
     def showZeal_shell(self):
         if not self.shellWin.selectedText() == "":
@@ -789,7 +790,7 @@ class myEditor(QMainWindow):
         if not self.shellWin.selectedText() == "":
             rtext = "python%20" + self.shellWin.selectedText().replace(" ", "%20")
             url = "https://www.google.com/search?q=" +  rtext.replace(" ", "%20")
-            QProcess.startDetached("firefox " + url)
+            QDesktopServices.openUrl(QUrl(url))
    
     def findNextWord(self):
         if self.editor.selectedText() == "":
@@ -900,7 +901,8 @@ class myEditor(QMainWindow):
         
     def gotoBookmarkFromMenu(self):
         if self.editor.selectedText() == "":
-            rtext = self.editor.wordAtLineIndex(self.editor.getCursorPosition()[0], self.editor.getCursorPosition()[1])
+            rtext = self.editor.wordAtLineIndex(self.editor.getCursorPosition()[0], 
+                                                self.editor.getCursorPosition()[1])
         else:
             rtext = self.editor.selectedText()
         toFind = rtext
@@ -1167,13 +1169,13 @@ class myEditor(QMainWindow):
     def findText(self):
         word = self.findfield.text()
         if self.editor.findFirst(word, True, False, True, True):
-            linenumber = self.getLineNumber() #editor.getCursorPosition()[0] + 1
+            linenumber = self.getLineNumber()
             self.statusBar().showMessage("found <b>'" + self.findfield.text() + "'</b> at Line: " + str(linenumber))
         else:
             self.statusBar().showMessage("<b>'" + self.findfield.text() + "'</b> not found")
             self.editor.getCursorPosition(0, 0)            
             if self.editor.findFirst(word):
-                linenumber = self.getLineNumber() #editor.getCursorPosition()[0] + 1
+                linenumber = self.getLineNumber()
                 self.statusBar().showMessage("found <b>'" + self.findfield.text() + "'</b> at Line: " + str(linenumber))
             
     def findBookmark(self, word):
@@ -1347,7 +1349,7 @@ class myEditor(QMainWindow):
                     "I couldn't detect any system tray on this system.")
         else:
             self.trayIcon = QSystemTrayIcon(self)
-            self.trayIcon.setIcon(QIcon.fromTheme("applications-python"))
+            self.trayIcon.setIcon(QIcon(QPixmap(self.logo)))
             self.trayIconMenu = QMenu(self)
             self.trayIconMenu.addAction(QAction(QIcon.fromTheme("applications-python"), "about PyEdit", 
                                         self, triggered=self.about))
@@ -1427,13 +1429,6 @@ background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
 if __name__ == '__main__':
     import sys
     app = QApplication(sys.argv)
-    translator = QTranslator(app)
-    locale = QLocale.system().name()
-    print(locale)
-    path = QLibraryInfo.location(QLibraryInfo.TranslationsPath)
-    print(path)
-    translator.load('qt_%s' % locale, path)
-    app.installTranslator(translator)
     win = myEditor()
     win.setWindowTitle("PyEdit" + "[*]")
     win.show()
