@@ -15,3 +15,5 @@ __Requirements:__
 # PyEdit3
 
 new Version using QScintilla
+
+![alt text](https://github.com/Axel-Erfurt/PyEdit2/blob/master/screenshot3.png)
