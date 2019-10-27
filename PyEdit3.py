@@ -72,7 +72,7 @@ class QSC(QsciScintilla):
 
         # Current line visible with special background color
         self.setCaretLineVisible(True)
-        self.setCaretLineBackgroundColor(QColor("#d3d7cf"))
+        self.setCaretLineBackgroundColor(QColor("#babdb6"))
 
         self.setIndentationsUseTabs(False)
         self.setTabWidth(4)
@@ -248,6 +248,8 @@ class QSC(QsciScintilla):
         if self.markersAtLine(nline) != 0:
             self.markerDelete(nline, self.ARROW_MARKER_NUM)
             self.parent.statusBar().showMessage("%s %s %s" % ("margin on line", nline, "removed"), 0)
+            self.setSelection(nline, 0, nline + 1, 0)
+            self.parent.removeBookmarkFromMarker(self.selectedText())
         else:
             self.markerAdd(nline, self.ARROW_MARKER_NUM)
             self.parent.statusBar().showMessage("%s %s" % ("added margin on line", nline), 0)
@@ -407,12 +409,21 @@ class myEditor(QMainWindow):
                 statusTip="open selected Text in QTextEdit", triggered=self.handleTextEdit)
         self.texteditAction.setIcon(QIcon.fromTheme("text-editor"))
         tb.addAction(self.texteditAction)
-        ### exit button
-        tb.addSeparator()
+
+        empty = QWidget()
+        empty.setFixedWidth(18)
+        tb.addWidget(empty)
+        ### marker bookmarks
+        self.bookmarksMarker = QComboBox()
+        self.bookmarksMarker.setFixedWidth(280)
+        self.bookmarksMarker.setToolTip("go to Marker bookmark")
+        self.bookmarksMarker.activated[str].connect(self.gotoMarkerBookmark)
+        tb.addWidget(self.bookmarksMarker)
         ## addStretch
         empty = QWidget();
         empty.setSizePolicy(QSizePolicy.Expanding,QSizePolicy.Preferred);
         tb.addWidget(empty)
+        ### exit button
         self.exitAct = QAction("exit", self, shortcut=QKeySequence.Quit,
                 statusTip="Exit", triggered=self.handleQuit)
         self.exitAct.setIcon(QIcon.fromTheme(self.root + "/icons/quit"))
@@ -838,11 +849,12 @@ class myEditor(QMainWindow):
 
     def addBookmarkFromMarker(self, linetext):
         linenumber = self.getLineNumber()
-        self.bookmarks.addItem(linetext.replace("\n", ""), linenumber)
+        self.bookmarksMarker.addItem(linetext.replace("\n", ""), linenumber)
 
-#    def removeBookmarkFromMarker(self, linetext):
-#        linenumber = self.getLineNumber()
-#        self.bookmarks.addItem(linetext.replace("\n", ""), linenumber)
+    def removeBookmarkFromMarker(self, linetext):
+        linenumber = self.getLineNumber()
+        ind = self.bookmarksMarker.findText(linetext.replace("\n", ""))
+        self.bookmarksMarker.removeItem(ind)
         
     def getLineNumber(self):
         linenumber = self.editor.getCursorPosition()[0] + 1
@@ -865,6 +877,15 @@ class myEditor(QMainWindow):
             self.editor.setFirstVisibleLine(t - 1)
         else:
             return
+            
+    def gotoMarkerBookmark(self):
+        btext = self.bookmarksMarker.itemText(self.bookmarksMarker.currentIndex())
+        btext = btext.partition("(")[0]
+        self.editor.findFirst(btext, True, True, True, True)
+        ln = self.getLineNumber() ### editor.getCursorPosition()[0]
+        self.editor.setCursorPosition(ln - 1, 0)
+        self.editor.setFirstVisibleLine(ln - 2)
+        self.editor.setFocus()        
         
     def gotoBookmark(self):
         btext = self.bookmarks.itemText(self.bookmarks.currentIndex())
@@ -882,7 +903,7 @@ class myEditor(QMainWindow):
             rtext = self.editor.selectedText()
         toFind = rtext
         self.bookmarks.setCurrentIndex(0)
-        if self.bookmarks.findText(toFind, Qt.MatchContains):
+        if self.bookmarks.findText(toFind, Qt.MatchExactly):
             row = self.bookmarks.findText(toFind, Qt.MatchContains)
             self.statusBar().showMessage("found '" + toFind + "' at bookmark "  + str(row))
             self.bookmarks.setCurrentIndex(row)
