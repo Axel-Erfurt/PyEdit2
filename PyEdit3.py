@@ -15,7 +15,6 @@ from PyQt5.QtGui import (QIcon, QPainter, QTextFormat, QColor, QTextCursor, QKey
                         QCursor, QFontMetrics, QFont,  QDesktopServices)
 from PyQt5.QtCore import (Qt, QVariant, QRect, QDir, QFile, QFileInfo, QTextStream, QSettings, QUrl, 
                             QProcess, QPoint, QSize, QCoreApplication, QLibraryInfo)
-from PyQt5 import QtPrintSupport
 import os
 from PyQt5.Qsci import QsciScintilla, QsciLexerPython, QsciAPIs, QsciPrinter, QsciScintillaBase
 import keyword
@@ -135,7 +134,7 @@ class QSC(QsciScintilla):
 
         self.setAutoCompletionThreshold(2)
         self.setAutoCompletionSource(QsciScintilla.AcsAll)
-        #self.setAutoCompletionCaseSensitivity(False)
+        self.setAutoCompletionCaseSensitivity(False)
         self.setAutoCompletionReplaceWord(False)
         self.setAutoCompletionShowSingle(True)
         self.setAutoCompletionUseSingle(QsciScintilla.AcusExplicit)
@@ -151,7 +150,7 @@ class QSC(QsciScintilla):
         self.selectionChanged.connect(self.getSelectionFromEditor)
 
         self.setCaretWidth(2)
-        ### BoxedFoldStyle, CircledTreeFoldStyle, BoxedTreeFoldStyle
+        ### BoxedFoldStyle, CircledTreeFoldStyle, BoxedTreeFoldStyle, CircledFoldStyle
         self.setFolding(QsciScintilla.FoldStyle(QsciScintilla.CircledTreeFoldStyle), margin = 2) 
         self.setCaretForegroundColor(QColor("#cc0000"))
         
