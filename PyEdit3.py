@@ -9,7 +9,7 @@ import PyQt5
 from PyQt5.QtWidgets import (QPlainTextEdit, QWidget, QVBoxLayout, QApplication, QFileDialog, QMessageBox, 
                             QLabel, QCompleter, QHBoxLayout, QTextEdit, QToolBar, QComboBox, QAction, 
                             QLineEdit, QDialog, QPushButton, QSizePolicy, QToolButton, QMenu, 
-                            QMainWindow, QInputDialog, QColorDialog, QStatusBar, QSystemTrayIcon)
+                            QMainWindow, QInputDialog, QColorDialog, QStatusBar)
 from PyQt5.QtGui import (QIcon, QPainter, QTextFormat, QColor, QTextCursor, QKeySequence, 
                         QClipboard, QTextDocument, QPixmap, QStandardItemModel, QStandardItem, 
                         QCursor, QFontMetrics, QFont,  QDesktopServices)
@@ -135,9 +135,10 @@ class QSC(QsciScintilla):
 
         self.setAutoCompletionThreshold(2)
         self.setAutoCompletionSource(QsciScintilla.AcsAll)
-        self.setAutoCompletionCaseSensitivity(False)
-        self.setAutoCompletionShowSingle(False)
-        self.setAutoCompletionUseSingle(QsciScintilla.AcusAlways)
+        #self.setAutoCompletionCaseSensitivity(True)
+        self.setAutoCompletionReplaceWord(False)
+        self.setAutoCompletionShowSingle(True)
+        self.setAutoCompletionUseSingle(QsciScintilla.AcusExplicit)
         self.autoCompleteFromAll()
 
         text = bytearray(str.encode("Noto Mono"))
@@ -147,6 +148,8 @@ class QSC(QsciScintilla):
         self.ScrollWidthTracking = True
         self.ScrollWidth = 0
         
+        #self.SendScintilla(QsciScintillaBase.SCI_STYLESETHOTSPOT, 1, True)
+        
         self.selectionChanged.connect(self.getSelectionFromEditor)
 
         self.setCaretWidth(2)
@@ -155,9 +158,13 @@ class QSC(QsciScintilla):
         ### BoxedFoldStyle, CircledTreeFoldStyle, BoxedTreeFoldStyle
         
         ### callTips
-        self.setCallTipsVisible(0)
+        self.setCallTipsVisible(-1)
         self.setCallTipsPosition(QsciScintilla.CallTipsBelowText)
+        ### CallTipsContext, CallTipsNoAutoCompletionContext, CallTipsNoContext, CallTipsNone
         self.setCallTipsStyle(QsciScintilla.CallTipsNoAutoCompletionContext)
+        self.setCallTipsBackgroundColor(QColor("#2e3436"))
+        self.setCallTipsForegroundColor(QColor("#d3d7cf"))
+        self.setCallTipsHighlightColor(QColor("#73d216"))
 
         self.setMinimumSize(500, 400)
 
@@ -272,7 +279,7 @@ class myEditor(QMainWindow):
         self.root = QFileInfo.path(QFileInfo(QCoreApplication.arguments()[0]))
         self.bookmarkslist = []
         print("self.root is: ", self.root)
-        self.logo = os.path.join(self.root, "logo_128.png")
+        self.logo = os.path.join(self.root, "logo_48.png")
         self.appfolder = self.root
         self.openPath = ""
         self.statusBar().showMessage(self.appfolder)
@@ -307,9 +314,6 @@ class myEditor(QMainWindow):
         layoutH = QHBoxLayout()
         layoutH.setSpacing(1.5)
         layoutH.addWidget(self.editor)
-        ### systray
-        self.createTrayIcon()
-        self.trayIcon.show()
         ### statusbar
         self.statusBar()
         self.statusBar().showMessage('Welcome')
@@ -321,9 +325,6 @@ class myEditor(QMainWindow):
         tb.setAllowedAreas(Qt.AllToolBarAreas)
         tb.setFloatable(False)
        
-        ### Manual
-        self.manualAct = QAction("Manual", self, triggered = self.manual, shortcut = "F1")
-        self.addAction(self.manualAct)
         ### file buttons
         self.newAct = QAction("&New", self, shortcut=QKeySequence.New,
                 statusTip="new file", triggered=self.newFile)
@@ -491,11 +492,6 @@ class myEditor(QMainWindow):
         self.bookmarks.setToolTip("go to bookmark")
         self.bookmarks.activated[str].connect(self.gotoBookmark)
         tbf.addWidget(self.bookmarks)
-
-        self.bookAct = QAction("add Bookmark", self,
-                statusTip="add Bookmark", triggered=self.addBookmark)
-        self.bookAct.setIcon(QIcon.fromTheme("previous"))
-        tbf.addAction(self.bookAct)
         
         tbf.addSeparator()
         self.bookrefresh = QAction("update Bookmarks", self,
@@ -552,6 +548,12 @@ class myEditor(QMainWindow):
         editmenu.addSeparator()
         editmenu.addAction(self.indentAct)
         editmenu.addAction(self.indentLessAct)
+        
+        helpmenu = bar.addMenu("Help")
+        helpmenu.addAction(QAction(QIcon.fromTheme('help-about'), "about", self, 
+                            triggered = self.about, shortcut = "Ctrl+i"))
+        helpmenu.addAction(QAction(QIcon.fromTheme('help-info'), "Manual", self, 
+                            triggered = self.manual, shortcut = "F1"))
 
         layoutV.addLayout(layoutH)
         self.shellWin.setMinimumHeight(28)
@@ -721,10 +723,11 @@ class myEditor(QMainWindow):
         cmenu.addAction(self.jumpToAct)
         cmenu.addSeparator()
         if not self.editor.selectedText() == "":
-            cmenu.addAction(QIcon.fromTheme("gtk-find-and-replace"),"replace all occurrences with", self.replaceThis)
+            cmenu.addAction(QIcon.fromTheme("gtk-find-and-replace"),"replace all '" 
+                                            + self.editor.selectedText() + "' with", self.replaceThis)
             cmenu.addSeparator()
         cmenu.addAction(QIcon.fromTheme("zeal"),"show help with 'zeal'", self.showZeal)
-        cmenu.addAction(QIcon.fromTheme("firefox"),"find with 'firefox'", self.findWithFirefox)
+        cmenu.addAction(QIcon.fromTheme("browser"),"find with browser", self.findWithBrowser)
         cmenu.addAction(QIcon.fromTheme("gtk-find-"),"find this (F10)", self.findNextWord)
         cmenu.addAction(self.texteditAction)
         cmenu.addSeparator()
@@ -749,14 +752,14 @@ class myEditor(QMainWindow):
         shellWinMenu = self.shellWin.createStandardContextMenu()
         shellWinMenu.addSeparator()
         shellWinMenu.addAction(QIcon.fromTheme("zeal"),"show help with 'zeal'", self.showZeal_shell)
-        shellWinMenu.addAction(QIcon.fromTheme("firefox"),"find with 'firefox'", self.findWithFirefox_shell)
+        shellWinMenu.addAction(QIcon.fromTheme("browser"),"find with browser", self.findWithBrowser_shell)
         if "/" in self.shellWin.textCursor().selectedText():
             shellWinMenu.addAction(self.fmanAction)
         shellWinMenu.exec_(self.shellWin.mapToGlobal(point))   
         
     def replaceThis(self):
         rtext = self.editor.selectedText()
-        text = QInputDialog.getText(self, "replace with","replace '" + rtext + "' with:", QLineEdit.Normal, "")
+        text = QInputDialog.getText(self, "replace with","replace '" + rtext + "' with:", QLineEdit.Normal, rtext)
         oldtext = self.editor.text()
         if not (text[0] == ""):
             newtext = oldtext.replace(rtext, text[0])
@@ -772,7 +775,7 @@ class myEditor(QMainWindow):
         cmd = "zeal " + str(rtext)
         QProcess().startDetached(cmd)
 
-    def findWithFirefox(self):
+    def findWithBrowser(self):
         if self.editor.selectedText() == "":
             rtext = self.editor.wordAtLineIndex(self.editor.getCursorPosition()[0], self.editor.getCursorPosition()[1])
         else:
@@ -781,14 +784,14 @@ class myEditor(QMainWindow):
         QDesktopServices.openUrl(QUrl(url))
 
     def showZeal_shell(self):
-        if not self.shellWin.selectedText() == "":
-            rtext = self.shellWin.selectedText()
+        if not self.shellWin.textCursor().selectedText() == "":
+            rtext = self.shellWin.textCursor().selectedText()
             cmd = "zeal " + str(rtext)
             QProcess().startDetached(cmd)
 
-    def findWithFirefox_shell(self):
-        if not self.shellWin.selectedText() == "":
-            rtext = "python%20" + self.shellWin.selectedText().replace(" ", "%20")
+    def findWithBrowser_shell(self):
+        if not self.shellWin.textCursor().selectedText() == "":
+            rtext = "python%20" + self.shellWin.textCursor().selectedText().replace(" ", "%20")
             url = "https://www.google.com/search?q=" +  rtext.replace(" ", "%20")
             QDesktopServices.openUrl(QUrl(url))
    
@@ -849,11 +852,6 @@ class myEditor(QMainWindow):
             self.recentFileActs.append(
                    QAction(self, visible=False,
                             triggered=self.openRecentFile))
-            
-    def addBookmark(self):
-        linenumber = self.getLineNumber()
-        linetext = self.editor.block().text().strip()
-        self.bookmarks.addItem(linetext, linenumber)
 
     def addBookmarkFromMarker(self, linetext):
         linenumber = self.getLineNumber()
@@ -1342,21 +1340,6 @@ class myEditor(QMainWindow):
             
     def selectLine(self, line):
         return
-        
-    def createTrayIcon(self):
-        if not QSystemTrayIcon.isSystemTrayAvailable():
-            QMessageBox.critical(None, "Systray",
-                    "I couldn't detect any system tray on this system.")
-        else:
-            self.trayIcon = QSystemTrayIcon(self)
-            self.trayIcon.setIcon(QIcon(QPixmap(self.logo)))
-            self.trayIconMenu = QMenu(self)
-            self.trayIconMenu.addAction(QAction(QIcon.fromTheme("applications-python"), "about PyEdit", 
-                                        self, triggered=self.about))
-            self.trayIconMenu.addSeparator()
-            self.trayIconMenu.addAction(QAction(QIcon.fromTheme("application-exit"),"Exit", 
-                                        self, triggered=self.handleQuit))
-            self.trayIcon.setContextMenu(self.trayIconMenu)
                        
   
 def stylesheet2(self):
