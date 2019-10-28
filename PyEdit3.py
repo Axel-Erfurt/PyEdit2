@@ -135,7 +135,7 @@ class QSC(QsciScintilla):
 
         self.setAutoCompletionThreshold(2)
         self.setAutoCompletionSource(QsciScintilla.AcsAll)
-        #self.setAutoCompletionCaseSensitivity(True)
+        #self.setAutoCompletionCaseSensitivity(False)
         self.setAutoCompletionReplaceWord(False)
         self.setAutoCompletionShowSingle(True)
         self.setAutoCompletionUseSingle(QsciScintilla.AcusExplicit)
@@ -146,16 +146,14 @@ class QSC(QsciScintilla):
         self.SendScintilla(QsciScintilla.SCI_SETHSCROLLBAR, 0)
         self.SendScintilla(QsciScintilla.SCI_SETVSCROLLBAR, 1, 0)
         self.ScrollWidthTracking = True
-        self.ScrollWidth = 0
-        
-        #self.SendScintilla(QsciScintillaBase.SCI_STYLESETHOTSPOT, 1, True)
+        self.ScrollWidth = 0     
         
         self.selectionChanged.connect(self.getSelectionFromEditor)
 
         self.setCaretWidth(2)
-        self.setFolding(QsciScintilla.FoldStyle(QsciScintilla.BoxedTreeFoldStyle), margin = 2) 
-        self.setCaretForegroundColor(QColor("#cc0000"))
         ### BoxedFoldStyle, CircledTreeFoldStyle, BoxedTreeFoldStyle
+        self.setFolding(QsciScintilla.FoldStyle(QsciScintilla.CircledTreeFoldStyle), margin = 2) 
+        self.setCaretForegroundColor(QColor("#cc0000"))
         
         ### callTips
         self.setCallTipsVisible(-1)
@@ -523,9 +521,9 @@ class myEditor(QMainWindow):
         
         editmenu = bar.addMenu("Edit")
         editmenu.addAction(QAction(QIcon.fromTheme('edit-undo'), "Undo", self, 
-                                    triggered = self.editor.undo, shortcut = "Ctrl+u"))
+                                    triggered = self.editor.undo, shortcut = "Ctrl+z"))
         editmenu.addAction(QAction(QIcon.fromTheme('edit-redo'), "Redo", self, 
-                            triggered = self.editor.redo, shortcut = "Shift+Ctrl+u"))
+                            triggered = self.editor.redo, shortcut = "Shift+Ctrl+z"))
         editmenu.addSeparator()
         editmenu.addAction(QAction(QIcon.fromTheme('edit-copy'), "Copy", self, 
                             triggered = self.editor.copy, shortcut = "Ctrl+c"))
